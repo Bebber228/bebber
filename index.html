@@ -25,8 +25,9 @@
 }
 /* обои рабочего стола: плитки цвета темы становятся «окнами» в картинку */
 /* обои: одна картинка на всю сетку плиток; у каждой плитки свой кусок (позиция считается в JS).
-   Кусок нарисован на самих сторонах плитки — переворачивается и выезжает вместе с ней */
-html.has-wall .face:not(.pic),html.has-wall .ava-name{background-image:var(--wall);background-repeat:no-repeat;
+   Переворачивающаяся плитка поворачивается вместе со своим куском; у плиток, где что-то выезжает
+   внутри (часы, «обо мне»), обои стоят на месте — двигается только содержимое */
+html.has-wall .face:not(.pic),html.has-wall .tile.peek .tile-body{background-image:var(--wall);background-repeat:no-repeat;
   background-size:var(--wsz,cover);background-position:var(--wx,0) var(--wy,0)}
 @media (max-width:640px){:root{--cols:4;--gap:5px;--w:calc(100vw - 20px)}}
 
@@ -101,6 +102,7 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
 /* плитка «обо мне»: аватарка опускается наполовину, до конца и снова поднимается */
 .ava-slide{position:absolute;left:0;right:0;top:-100%;height:200%;transition:transform 1.1s var(--ease)}
 .ava-name{position:absolute;left:0;right:0;top:0;height:50%}
+html.has-wall .tile.peek .face:not(.pic){background:transparent}
 .nick{position:absolute;left:10px;bottom:8px;font-size:calc(var(--cell) * .4);font-weight:300;line-height:1.1}
 .ava-pic{position:absolute;left:0;right:0;top:50%;height:50%;background:center/cover no-repeat}
 .tile.ava .label{text-shadow:0 0 6px #000a}
@@ -732,10 +734,12 @@ function socialStep() {
   }
   if (Math.random() < .16) {                       // иконка на 2×2 в случайном углу
     const r = Math.random() * 2 | 0, c = Math.random() * 2 | 0;
-    SOC.big = { r, c }; SOC.bigAge = 0;
-    const seen = new Set(SOC.cells.filter((_, k) => !covered(k)));   // не дублировать видимые иконки
-    const pick = ids.filter(x => !seen.has(x)), id = (pick.length ? pick : ids)[Math.random() * (pick.length || ids.length) | 0];
-    SOC.big.id = id;
+    const inBig = k => { const dr = Math.floor(k / 3) - r, dc = (k % 3) - c; return dr >= 0 && dr <= 1 && dc >= 0 && dc <= 1; };
+    const seen = new Set(SOC.cells.filter((_, k) => !inBig(k)));     // большая иконка не повторяет видимые
+    const pick = ids.filter(x => !seen.has(x));
+    if (!pick.length) return socialCell(cells, covered);
+    const id = pick[Math.random() * pick.length | 0];
+    SOC.big = { r, c, id }; SOC.bigAge = 0;
     Object.assign(big.style, { top: (r * 100 / 3) + '%', left: (c * 100 / 3) + '%' });
     const pos = ['0% 0%', '100% 0%', '0% 100%', '100% 100%'];
     big.innerHTML = pos.map(() => '<div class="q"></div>').join(''); big.hidden = false;
@@ -761,7 +765,7 @@ function socialStep() {
 function socialCell(cells, covered) {
   const free = cells.map((_, i) => i).filter(i => !covered(i));
   const i = free[Math.random() * free.length | 0], curC = SOC.cells[i];
-  const shown = new Set(SOC.cells.filter((c, k) => k !== i && !covered(k)).concat(SOC.big ? [SOC.big.id] : []));
+  const shown = new Set(SOC.cells.filter((c, k) => k !== i).concat(SOC.big ? [SOC.big.id] : []));
   const icons = SOCIAL.map(x => x.id).filter(id => id !== curC && !shown.has(id));
   let next;
   if (isBlank(curC)) next = Math.random() < .25 || !icons.length ? randBlank() : icons[Math.random() * icons.length | 0];
