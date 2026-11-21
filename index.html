@@ -128,7 +128,7 @@ html.has-wall .tile.peek .face:not(.pic){background:transparent}
 .search:focus{background:#fff;border-color:var(--accent)}
 .letter{width:52px;height:52px;border:2px solid var(--accent);color:var(--accent);font-size:30px;font-weight:300;
   display:flex;align-items:flex-end;padding:0 0 3px 7px;margin:18px 0 8px;line-height:1}
-.app-row{display:flex;align-items:center;gap:14px;padding:5px 0;font-size:22px;width:max-content;max-width:100%}
+.app-row{display:flex;align-items:center;gap:14px;padding:5px 0;font-size:22px;width:100%}
 .app-ico{width:52px;height:52px;background:var(--accent);display:flex;align-items:center;justify-content:center;flex:none;overflow:hidden}
 .app-ico svg{width:28px;stroke:#fff;fill:none;stroke-width:1.6}
 .app-ico img{width:100%;height:100%;object-fit:cover;display:block}
@@ -148,7 +148,7 @@ html.has-wall .tile.peek .face:not(.pic){background:transparent}
 .pv-ghost{position:absolute;left:0;top:0;right:0;pointer-events:none}
 /* все вкладки начинаются на одной высоте (отступ первого элемента не «проваливается» наружу) */
 .pivot-body>:first-child,.pv-ghost>:first-child{margin-top:0}
-.li{display:block;padding:8px 0 10px;width:max-content;max-width:100%}
+.li{display:block;padding:8px 0 10px;width:100%}
 .li-t{font-size:28px;font-weight:300;line-height:1.15;display:block}
 .li-s{font-size:15px;color:var(--accent);margin-top:2px;display:block}
 .li.pli{display:flex;align-items:center;gap:14px}
@@ -166,7 +166,7 @@ html.has-wall .tile.peek .face:not(.pic){background:transparent}
 .colors{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:8px;max-width:620px}
 .colors button{aspect-ratio:1;border:3px solid transparent}
 .colors button.on{border-color:#fff}
-.opt{display:block;padding:8px 0 10px}
+.opt{display:block;padding:8px 0 10px;width:100%}
 /* настройки в стиле WP 8.1 */
 .li-s.gray{color:#9a9a9a}
 .lp{display:block;width:100%;max-width:560px;border:3px solid #fff;text-align:left;padding:6px 10px;font-size:22px;font-weight:400;line-height:1.3}
@@ -242,6 +242,18 @@ html.light .wp-logo{filter:invert(1)}
 .sw.drag b,.sw.drag i{transition:none}
 .t-s{font-size:20px;font-weight:300}
 
+/* ===== Сообщение (MessageDialog WP 8.1): панель сверху, остальное затемнено ===== */
+#msg{position:fixed;inset:0;z-index:120;background:#000000a6;touch-action:none}
+#msg .mb{background:#1f1f1f;padding:22px 0 24px;transform-origin:50% 0;backface-visibility:hidden}
+#msg .mb-in{width:var(--w);margin:0 auto;padding:0 4px}
+#msg .mb-t{font-size:clamp(22px,4vw,27px);font-weight:400;line-height:1.2;max-width:620px}
+#msg .mb-x{font-size:17px;line-height:1.45;margin:12px 0 24px;max-width:620px;font-weight:300}
+#msg .mb-b{min-width:min(46%,240px);border:3px solid #fff;padding:6px 14px;font-size:18px;font-weight:600;text-align:center}
+#msg .mb-b:active{background:#fff;color:#000}
+html.light #msg .mb{background:#fff}
+html.light #msg .mb-b{border-color:#000}
+html.light #msg .mb-b:active{background:#000;color:#fff}
+
 /* ===== Просмотр скриншотов ===== */
 #viewer{position:fixed;inset:0;z-index:70;background:#000;display:flex;align-items:center;justify-content:center;cursor:pointer;touch-action:none}
 #viewer img{max-width:calc(100vw - 24px);max-height:calc(100vh - 70px);display:block}
@@ -291,6 +303,7 @@ html.light .wp-logo{filter:invert(1)}
 
 <div id="sbar"></div>
 <div id="jump" hidden><div class="jl"></div></div>
+<div id="msg" hidden><div class="mb"><div class="mb-in"><div class="mb-t"></div><div class="mb-x"></div><button class="mb-b tilt"></button></div></div></div>
 <div id="picker" hidden><div class="pk-in"><div class="pk-title"></div><div class="pk-h"></div><div class="pk-grid"></div></div></div>
 <input type="file" id="wallFile" accept="image/*" hidden>
 <div id="viewer" hidden><img alt=""><div class="v-cnt"></div></div>
@@ -367,6 +380,8 @@ const STR = {
     aboutApp: 'о приложении', screenshots: 'скриншоты', theme: 'тема', language: 'язык', site: 'о сайте',
     accent: 'цвет элементов', lockToggle: 'экран блокировки при входе', on: 'вкл.', off: 'выкл.',
     reset: 'сбросить настройки', search: 'поиск приложений', lockHint: 'потяните вверх, чтобы разблокировать',
+    batT: 'Критический низкий уровень заряда аккумулятора',
+    batX: 'Не пропустите ничего важного! Рекомендуется зарядить устройство в ближайшее время, иначе он отключится.', ok: 'ок',
     allApps: 'все приложения', writeMe: 'напишите мне', tagline: 'разработчик приложений для Windows Phone',
     langAuto: 'как в системе', system: 'сейчас', langHint: 'язык интерфейса сайта', mail: 'почта',
     hi: n => `Привет! Я ${n}.`,
@@ -390,6 +405,8 @@ const STR = {
     aboutApp: 'about', screenshots: 'screenshots', theme: 'theme', language: 'language', site: 'about site',
     accent: 'accent colour', lockToggle: 'lock screen on start', on: 'on', off: 'off',
     reset: 'reset settings', search: 'search apps', lockHint: 'swipe up to unlock',
+    batT: 'Critically low battery',
+    batX: "Don't miss anything important! Charge your device soon, otherwise it will turn off.", ok: 'ok',
     allApps: 'all apps', writeMe: 'get in touch', tagline: 'Windows Phone app developer',
     langAuto: 'system default', system: 'now', langHint: 'site interface language', mail: 'email',
     hi: n => `Hi! I'm ${n}.`,
@@ -794,6 +811,35 @@ function tick() {
 }
 setInterval(tick, 1000);
 
+/* ================= Сообщение и предупреждение о низком заряде ================= */
+// панель выезжает сверху поворотом вокруг верхнего края, как MessageDialog в WP 8.1
+function showMsg(title, text, ok) {
+  const el = $('#msg');
+  $('.mb-t', el).textContent = title; $('.mb-x', el).textContent = text; $('.mb-b', el).textContent = ok;
+  el.hidden = false; overlayPush();
+  el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: dur(200) });
+  $('.mb', el).animate([{ transform: 'perspective(900px) rotateX(-90deg)' }, { transform: 'none' }], { duration: dur(320), easing: EASE_OUT });
+}
+let msgClosing = false;
+function closeMsg() {
+  const el = $('#msg'); if (el.hidden || msgClosing) return;
+  msgClosing = true; overlayPop();
+  el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: dur(180), fill: 'forwards' });
+  $('.mb', el).animate([{ transform: 'none' }, { transform: 'perspective(900px) rotateX(-90deg)' }], { duration: dur(180), easing: EASE_IN, fill: 'forwards' })
+    .finished.then(() => { el.hidden = true; el.getAnimations({ subtree: true }).forEach(a => a.cancel()); msgClosing = false; });
+}
+$('#msg .mb-b').addEventListener('click', () => closeMsg());
+// предупреждение при 20 %, затем при 10 % и 5 %; на зарядке — сбрасывается
+function lowBattery(pct, charging) {
+  let shown = []; try { shown = JSON.parse(sessionStorage.getItem('wp_bat') || '[]'); } catch (e) {}
+  const save = () => { try { sessionStorage.setItem('wp_bat', JSON.stringify(shown)); } catch (e) {} };
+  if (charging) { if (shown.length) { shown = []; save(); } return; }
+  const lvl = [20, 10, 5].filter(x => pct <= x).pop();
+  if (!lvl || shown.includes(lvl)) return;
+  shown.push(lvl); save();
+  showMsg(t('batT'), t('batX'), t('ok'));
+}
+
 /* ================= Батарея (Battery Status API) ================= */
 if (navigator.getBattery) {
   navigator.getBattery().then(b => {
@@ -805,6 +851,7 @@ if (navigator.getBattery) {
       wrap.classList.toggle('charging', b.charging);
       bat.classList.toggle('low', pct <= 15 && !b.charging);
       wrap.hidden = false;
+      lowBattery(pct, b.charging);
     };
     upd();
     b.addEventListener('levelchange', upd);
@@ -857,7 +904,7 @@ function jumpMosaic(show, btns = $$('#jump .jl button')) {
    кнопка «назад» браузера или телефона закрывает окно, а не уводит со страницы. */
 function overlayPush() { try { history.pushState({ ov: 1 }, ''); } catch (e) {} }
 function overlayPop() { try { if (history.state && history.state.ov) history.back(); } catch (e) {} }
-addEventListener('popstate', () => { if (!$('#picker').hidden) closePicker(); if (!$('#jump').hidden) closeJump(); });
+addEventListener('popstate', () => { if (!$('#msg').hidden) closeMsg(); if (!$('#picker').hidden) closePicker(); if (!$('#jump').hidden) closeJump(); });
 let pk = null;
 function openPicker(o) {
   pk = o;
@@ -1046,7 +1093,7 @@ function velocity(d, e) {                       // px/мс по последни
 function hDrag(start, move, end) {
   let d = null;
   document.addEventListener('pointerdown', e => {
-    if (e.button > 0 || e.target.closest('input, #jump, #viewer, #picker, .sw')) return;
+    if (e.button > 0 || e.target.closest('input, #jump, #viewer, #picker, #msg, .sw')) return;
     const ok = start(e); if (!ok) return;
     d = { x: e.clientX, y: e.clientY, active: false, samples: [], ok };
   });
@@ -1341,6 +1388,7 @@ hDrag(
   });
 
 document.addEventListener('keydown', e => {
+  if (!$('#msg').hidden) { if (['Escape', 'Enter', 'Backspace', ' '].includes(e.key)) { e.preventDefault(); closeMsg(); } return; }
   if (!lock.hidden) { unlock(0); return; }
   if (vw) {
     if (e.key === 'ArrowLeft') showShot(vw.k - 1, -1);
