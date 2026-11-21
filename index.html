@@ -839,7 +839,9 @@ const TURN = {
   'in-fwd':   { up: false, step: 30, dur: 170, from: 45, to: 0,   ease: 'cubic-bezier(0,0,.2,1)' },
   'out-back': { up: false, step: 30, dur: 130, from: 0,  to: 50,  cut: .7, ease: 'cubic-bezier(.5,0,1,1)' },
   'in-back':  { up: true,  step: 30, dur: 260, from: -28, to: 0, ease: 'cubic-bezier(0,0,.2,1)' },   // тот же поворот, но с полпути и с проявлением
-  'tiles':    { up: true,  step: 32, dur: 360, from: 70, to: 0,   ease: 'cubic-bezier(.1,.9,.2,1)' }
+  // рабочий стол появляется: плитки (по диагонали от нижнего правого угла) разворачиваются из глубины —
+  // узкой полоской ближе к центру экрана — вправо на своё место
+  'tiles':    { step: 36, dur: 480, from: 80, to: 0, ease: 'cubic-bezier(.1,.9,.2,1)', swingIn: true }
 };
 function turnstile(els, mode, first) {
   // ось — у левого края колонки контента (как левый край экрана телефона), перспектива по ширине колонки
@@ -847,8 +849,8 @@ function turnstile(els, mode, first) {
   const axis = Math.max(0, sh.left - 14);
   // swing: ось и точка перспективы разделены (ось левее колонки, перспектива из центра экрана)
   const hingeX = sh.left - sh.width * .3, vpX = sh.left + sh.width / 2, vpY = H / 2, PS = Math.max(420, sh.width);
-  const swing = (r, a) => `translate(${vpX - r.left}px,${vpY - r.top}px) perspective(${PS}px) translate(${r.left - vpX}px,${r.top - vpY}px) `
-    + `translate(${hingeX - r.left}px,0) rotateY(${a}deg) translate(${r.left - hingeX}px,0)`;
+  const swing = (r, a, hx = hingeX) => `translate(${vpX - r.left}px,${vpY - r.top}px) perspective(${PS}px) translate(${r.left - vpX}px,${r.top - vpY}px) `
+    + `translate(${hx - r.left}px,0) rotateY(${a}deg) translate(${r.left - hx}px,0)`;
   const vis = els.filter(el => { if (el.hidden || !el.getClientRects().length) return false; const r = el.getBoundingClientRect(); return r.bottom >= 0 && r.top < H; });
   const rects = new Map(vis.map(el => [el, el.getBoundingClientRect()]));
   vis.sort((a, b) => { const ra = rects.get(a), rb = rects.get(b); return (Math.round(ra.top / 8) - Math.round(rb.top / 8)) || (ra.left - rb.left); });
@@ -861,11 +863,23 @@ function turnstile(els, mode, first) {
   vis.forEach(el => { if (el === first) return; const r = rects.get(el);
     if (lastTop === null || Math.abs(r.top - lastTop) > 8) { row++; lastTop = r.top; } rows.set(el, row); });
   const maxRow = row;
+  const onStart = vis.length && vis[0].closest('#start');
+  const cell = sh.width / (innerWidth <= 640 ? 4 : 8);
+  const others = vis.filter(el => el !== first).map(el => rects.get(el));
+  const maxBottom = others.length ? Math.max(...others.map(r => Math.min(r.bottom, H))) : 0;
+  const diag = r => (maxBottom - Math.min(r.bottom, H)) / cell + (sh.right - r.right) / cell * .6;
+  const lastK = onStart ? Math.max(0, ...others.map(diag)) : Math.min(maxRow, 14);
   const anims = vis.map(el => {
     const r = rects.get(el);
     el.style.transformOrigin = `${axis - r.left}px ${H / 2 - r.top}px`;
-    const k = rows.has(el) ? (c.up ? maxRow - rows.get(el) : rows.get(el)) : 0;
-    const delay = el === first && c.extra ? Math.min(maxRow, 14) * c.step + c.extra : Math.min(k, 14) * c.step;
+    const k = onStart ? diag(r) : rows.has(el) ? (c.up ? maxRow - rows.get(el) : rows.get(el)) : 0;
+    const delay = el === first && c.extra ? lastK * c.step + c.extra : Math.min(k, 14) * c.step;
+    if (c.swingIn) {
+      el.style.transformOrigin = '0 0';
+      const hx = sh.left - 12;
+      return el.animate([{ transform: swing(r, c.from, hx), opacity: 0 }, { opacity: 1, offset: .1 }, { transform: swing(r, c.to, hx), opacity: 1 }],
+        { duration: dur(c.dur), delay: dur(delay), easing: c.ease, fill: 'both' });
+    }
     if (c.swing) {
       el.style.transformOrigin = '0 0';
       return el.animate([{ transform: swing(r, 0), opacity: 1 }, { transform: swing(r, c.to * .5), opacity: .75, offset: .55 }, { transform: swing(r, c.to), opacity: 0 }],
