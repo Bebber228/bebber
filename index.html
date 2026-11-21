@@ -24,10 +24,10 @@
   --ease:cubic-bezier(.1,.9,.2,1);
 }
 /* обои рабочего стола: плитки цвета темы становятся «окнами» в картинку */
-/* обои: одна картинка на всю сетку плиток; у каждой плитки свой кусок (позиция считается в JS),
-   картинка лежит под содержимым и не двигается при перевороте/выезде плитки */
-html.has-wall .tile-body{background-image:var(--wall);background-repeat:no-repeat;background-size:var(--wsz,cover);background-position:var(--wx,0) var(--wy,0)}
-html.has-wall .face:not(.pic){background-color:transparent}
+/* обои: одна картинка на всю сетку плиток; у каждой плитки свой кусок (позиция считается в JS).
+   Кусок нарисован на самих сторонах плитки — переворачивается и выезжает вместе с ней */
+html.has-wall .face:not(.pic),html.has-wall .ava-name{background-image:var(--wall);background-repeat:no-repeat;
+  background-size:var(--wsz,cover);background-position:var(--wx,0) var(--wy,0)}
 @media (max-width:640px){:root{--cols:4;--gap:5px;--w:calc(100vw - 20px)}}
 
 *{box-sizing:border-box}
@@ -180,7 +180,7 @@ html.light .lpk{border-color:#000}
 .wall-prev{width:140px;height:140px;flex:none;background:#1f1f1f center/cover no-repeat}
 .wall-row .btn{margin-top:4px;font-weight:600;font-size:18px;padding:6px 14px}
 .ulink{display:block;margin-top:26px;font-size:18px;text-decoration:underline}
-.spider{width:min(320px,75%);display:block;margin:0 0 14px}
+.spider{width:min(190px,48%);display:block;margin:0 0 14px}
 .credits{margin-top:44px;max-width:560px}
 .cr-in{opacity:.42}
 .wp-logo{width:min(280px,80%);display:block;margin:0 0 14px}
@@ -835,7 +835,7 @@ $('#appList').addEventListener('click', e => {
   const alpha = L() === 'ru' ? other.filter(l => has.has(l)).concat(base) : base.concat(other.filter(l => has.has(l)));
   const jl = $('#jump .jl');
   jl.innerHTML = alpha.map(l => `<button class="${has.has(l) ? 'has' : ''}" data-l="${l}">${l}</button>`).join('');
-  $('#jump').hidden = false; $('#jump').scrollTop = 0;
+  $('#jump').hidden = false; $('#jump').scrollTop = 0; overlayPush();
   jumpMosaic(true);
 });
 // мозаика: плитки букв переворачиваются по одной, строка за строкой со случайным разбросом
@@ -848,6 +848,11 @@ function jumpMosaic(show, btns = $$('#jump .jl button')) {
   return Promise.all(anims.map(a => a.finished)).then(() => anims, () => anims);
 }
 /* ================= Полноэкранный выбор: цвет элементов, обои ================= */
+/* Окна поверх страницы (выбор цвета/обоев, меню букв) получают свою запись в истории:
+   кнопка «назад» браузера или телефона закрывает окно, а не уводит со страницы. */
+function overlayPush() { try { history.pushState({ ov: 1 }, ''); } catch (e) {} }
+function overlayPop() { try { if (history.state && history.state.ov) history.back(); } catch (e) {} }
+addEventListener('popstate', () => { if (!$('#picker').hidden) closePicker(); if (!$('#jump').hidden) closeJump(); });
 let pk = null;
 function openPicker(o) {
   pk = o;
@@ -859,13 +864,13 @@ function openPicker(o) {
   el.classList.toggle('chrome', !!o.chrome);
   g.innerHTML = (o.plus ? `<button class="plus tilt" data-v="+"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>` : '') +
     o.items.map(it => `<button class="tilt${it.on ? ' on' : ''}" data-v="${it.v}" style="${it.style}"${it.title ? ` title="${it.title}"` : ''}></button>`).join('');
-  el.hidden = false; el.scrollTop = 0;
+  el.hidden = false; el.scrollTop = 0; overlayPush();
   jumpMosaic(true, $$('.pk-grid button', el));
 }
 let pkClosing = false;
 function closePicker(v) {
   const el = $('#picker'); if (el.hidden || pkClosing) return;
-  pkClosing = true;
+  pkClosing = true; overlayPop();
   const o = pk;
   jumpMosaic(false, $$('.pk-grid button', el)).then(anims => {
     el.hidden = true; anims.forEach(a => a.cancel()); pkClosing = false;
@@ -929,7 +934,7 @@ $('#wallFile').addEventListener('change', e => {
 let jumpClosing = false;
 function closeJump(letter) {
   if ($('#jump').hidden || jumpClosing) return;
-  jumpClosing = true;
+  jumpClosing = true; overlayPop();
   jumpMosaic(false).then(anims => {
     $('#jump').hidden = true; anims.forEach(a => a.cancel()); jumpClosing = false;
     if (letter) { const el = $(`#appList .letter[data-l="${letter}"]`); if (el) scrollTo(0, el.getBoundingClientRect().top + scrollY - 40); }
@@ -1221,6 +1226,7 @@ async function go(v) {
   if (hist.length > 1 && hist[hist.length - 2] === key) hist.pop(); else hist.push(key);
   cur = v;
   closeViewer();
+  $('#picker').hidden = true; $('#jump').hidden = true;
   if (!old) { hideAll(); if (v.kind === 'app') buildPage(v.id); views[v.kind].hidden = false; return; }
   $('#jump').hidden = true;
 
