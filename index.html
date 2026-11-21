@@ -291,7 +291,7 @@ const STR = {
     about: 'обо мне', devices: 'устройства', contacts: 'контакты', projects: 'проекты', settings: 'настройки',
     aboutApp: 'о приложении', screenshots: 'скриншоты', theme: 'тема', language: 'язык', site: 'о сайте',
     accent: 'цвет элементов', lockToggle: 'экран блокировки при входе', on: 'вкл.', off: 'выкл.',
-    reset: 'сбросить настройки', search: 'поиск приложений', lockHint: 'потяните вверх или нажмите, чтобы разблокировать',
+    reset: 'сбросить настройки', search: 'поиск приложений', lockHint: 'потяните вверх, чтобы разблокировать',
     allApps: 'все приложения', writeMe: 'напишите мне', tagline: 'разработчик приложений для Windows Phone',
     langAuto: 'как в системе', system: 'сейчас', langHint: 'язык интерфейса сайта', mail: 'почта',
     hi: n => `Привет! Я ${n}.`,
@@ -306,7 +306,7 @@ const STR = {
     about: 'about me', devices: 'devices', contacts: 'contacts', projects: 'projects', settings: 'settings',
     aboutApp: 'about', screenshots: 'screenshots', theme: 'theme', language: 'language', site: 'about site',
     accent: 'accent colour', lockToggle: 'lock screen on start', on: 'on', off: 'off',
-    reset: 'reset settings', search: 'search apps', lockHint: 'swipe up or tap to unlock',
+    reset: 'reset settings', search: 'search apps', lockHint: 'swipe up to unlock',
     allApps: 'all apps', writeMe: 'get in touch', tagline: 'Windows Phone app developer',
     langAuto: 'system default', system: 'now', langHint: 'site interface language', mail: 'email',
     hi: n => `Hi! I'm ${n}.`,
@@ -1103,25 +1103,79 @@ function setLang(k) { langPref = k; store.set('lang', k); applyLang(); }
 const lock = $('#lock');
 lock.style.backgroundImage = `url('img/lock/${WALLPAPERS[Math.random() * WALLPAPERS.length | 0]}')`;
 function intro() { turnstile(items(cur), cur.kind === 'start' ? 'tiles' : 'in-fwd').then(a => a.forEach(x => x.cancel())); }
-function unlock(fromY) {
+/* Экран блокировки как в WP 8.1 (замерено покадрово по замедленной съёмке):
+   • нажатие — экран чуть подпрыгивает (~4,4 % высоты), падает и ещё раз отскакивает (~1,9 %);
+   • тянем вверх — экран идёт за пальцем; отпустили — летит вверх по инерции и замедляется;
+     если остановился бы выше середины — разблокируется, иначе падает (с ускорением, за одно и то же
+     время с любой высоты) и отскакивает: ~4,4 %, затем ~1,9 %. */
+const LK = { y: 0, raf: 0, busy: false };
+const lkSet = y => { LK.y = y; lock.style.transform = `translate3d(0,${y}px,0)`; };
+const easeOut2 = t => 1 - (1 - t) * (1 - t), easeIn2 = t => t * t;
+function lkRun(segs) {                       // segs: [{to, ms, ease}] — по очереди, через requestAnimationFrame
+  cancelAnimationFrame(LK.raf);
+  return new Promise(res => {
+    let k = 0, from = LK.y, t0 = performance.now();
+    const step = now => {
+      const sg = segs[k]; if (!sg) return res();
+      const t = Math.min(1, (now - t0) / dur(sg.ms));
+      lkSet(from + (sg.to - from) * sg.ease(t));
+      if (t >= 1) { k++; from = LK.y; t0 = now; }
+      if (k < segs.length) LK.raf = requestAnimationFrame(step); else res();
+    };
+    LK.raf = requestAnimationFrame(step);
+  });
+}
+function lkBounces(fromH) {                  // падение до низа и отскоки
+  const H = innerHeight, b1 = -H * .044, b2 = -H * .019, segs = [{ to: 0, ms: 240, ease: easeIn2 }];
+  if (fromH < b1 * 1.3) segs.push({ to: b1, ms: 190, ease: easeOut2 }, { to: 0, ms: 190, ease: easeIn2 });
+  segs.push({ to: b2, ms: 150, ease: easeOut2 }, { to: 0, ms: 150, ease: easeIn2 });
+  return lkRun(segs);
+}
+function lockHint() {                        // нажатие: подпрыгнуть и отскочить
+  if (lock.dataset.gone) return;
+  lkRun([{ to: -innerHeight * .044, ms: 200, ease: easeOut2 }]).then(() => lkBounces(LK.y));
+}
+function unlock(fromY, v = 0) {
   if (lock.hidden || lock.dataset.gone) return;
   lock.dataset.gone = 1;
-  lock.style.transform = '';
-  lock.animate([{ transform: `translateY(${fromY || 0}px)` }, { transform: 'translateY(-100%)' }],
-    { duration: dur(420), easing: 'cubic-bezier(.4,0,.6,1)', fill: 'forwards' })
-    .finished.then(() => { lock.hidden = true; intro(); document.body.classList.remove('locked'); });
+  cancelAnimationFrame(LK.raf);
+  const y = fromY !== undefined ? fromY : LK.y, H = innerHeight;
+  const ms = Math.abs(v) > .3 ? Math.max(160, Math.min(380, 1.6 * (H + y) / Math.abs(v))) : 380;
+  lkSet(y);
+  lkRun([{ to: -H, ms, ease: easeOut2 }]).then(() => { lock.hidden = true; intro(); document.body.classList.remove('locked'); });
 }
 (() => {
-  let y0 = null, dy = 0;
-  lock.addEventListener('pointerdown', e => { y0 = e.clientY; dy = 0; lock.setPointerCapture(e.pointerId); lock.style.transition = 'none'; });
-  lock.addEventListener('pointermove', e => { if (y0 === null) return; dy = Math.min(0, e.clientY - y0); lock.style.transform = `translateY(${dy}px)`; });
-  const end = () => {
-    if (y0 === null) return; y0 = null;
-    if (dy < -60 || Math.abs(dy) < 6) unlock(dy);
-    else { lock.style.transition = 'transform .3s cubic-bezier(.1,.9,.2,1)'; lock.style.transform = ''; }
+  const DECEL = .004;                         // замедление после отпускания, px/мс²
+  let d = null;
+  lock.addEventListener('pointerdown', e => {
+    if (lock.dataset.gone) return;
+    cancelAnimationFrame(LK.raf);             // подхватываем экран там, где он сейчас (даже посреди отскока)
+    d = { y0: e.clientY, base: LK.y, moved: false, s: [[e.timeStamp, e.clientY]] };
+    lock.setPointerCapture(e.pointerId);
+  });
+  lock.addEventListener('pointermove', e => {
+    if (!d) return;
+    const dy = e.clientY - d.y0;
+    if (Math.abs(dy) > 6) d.moved = true;
+    lkSet(Math.min(0, d.base + dy));
+    d.s.push([e.timeStamp, e.clientY]); if (d.s.length > 6) d.s.shift();
+  });
+  const end = e => {
+    if (!d) return; const g = d; d = null;
+    if (!g.moved) { if (LK.y > -2) lockHint(); else lkBounces(LK.y); return; }
+    const pts = g.s.filter(q => e.timeStamp - q[0] < 100);
+    let v = 0;                                  // скорость вверх, px/мс (отрицательная — вверх)
+    if (pts.length > 1) { const a = pts[0], b = pts[pts.length - 1]; v = (b[1] - a[1]) / Math.max(1, b[0] - a[0]); }
+    const H = innerHeight, up = Math.max(0, -v);
+    const apex = LK.y - up * up / (2 * DECEL);  // где остановится по инерции
+    if (apex < -H / 2) return unlock(LK.y, v);
+    const coast = up > .05 ? Math.min(380, up / DECEL) : 0;
+    (coast ? lkRun([{ to: apex, ms: coast, ease: easeOut2 }]) : Promise.resolve()).then(() => lkBounces(LK.y));
   };
   lock.addEventListener('pointerup', end);
   lock.addEventListener('pointercancel', end);
+  // колесо мыши / тачпад — сразу разблокировать
+  lock.addEventListener('wheel', e => { if (Math.abs(e.deltaY) > 20) unlock(LK.y); }, { passive: true });
 })();
 
 /* ================= Старт ================= */
