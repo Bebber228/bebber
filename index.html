@@ -242,17 +242,18 @@ html.light .wp-logo{filter:invert(1)}
 .sw.drag b,.sw.drag i{transition:none}
 .t-s{font-size:20px;font-weight:300}
 
-/* ===== Сообщение (MessageDialog WP 8.1): панель сверху, остальное затемнено ===== */
-#msg{position:fixed;inset:0;z-index:120;background:#000000a6;touch-action:none}
-#msg .mb{background:#1f1f1f;padding:22px 0 24px;transform-origin:50% 0;backface-visibility:hidden}
-#msg .mb-in{width:var(--w);margin:0 auto;padding:0 4px}
-#msg .mb-t{font-size:clamp(22px,4vw,27px);font-weight:400;line-height:1.2;max-width:620px}
-#msg .mb-x{font-size:17px;line-height:1.45;margin:12px 0 24px;max-width:620px;font-weight:300}
-#msg .mb-b{min-width:min(46%,240px);border:3px solid #fff;padding:6px 14px;font-size:18px;font-weight:600;text-align:center}
-#msg .mb-b:active{background:#fff;color:#000}
+/* ===== Сообщение (MessageDialog WP 8.1, по видео): панель под строкой состояния, остальное затемнено ===== */
+#msg{position:fixed;left:0;right:0;top:28px;bottom:0;z-index:120;background:#000000a1;touch-action:none}
+#msg .mb{background:#181a18;padding:26px 0 24px;transform-origin:50% 50%;backface-visibility:hidden}
+#msg .mb-in{width:var(--w);margin:0 auto;padding:0 2px;max-width:680px}
+#msg .mb-t{font-size:25px;font-weight:600;line-height:1.2}
+#msg .mb-x{font-size:20px;font-weight:400;line-height:1.35;margin:20px 0 30px}
+#msg .mb-btns{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+#msg .mb-b{height:44px;border:3px solid #fff;font-size:19px;font-weight:600;text-align:center;line-height:1}
+#msg .mb-b:active,#msg .mb-b.press{background:var(--accent);border-color:var(--accent);color:#fff}
 html.light #msg .mb{background:#fff}
 html.light #msg .mb-b{border-color:#000}
-html.light #msg .mb-b:active{background:#000;color:#fff}
+html.light #msg .mb-b:active,html.light #msg .mb-b.press{border-color:var(--accent)}
 
 /* ===== Просмотр скриншотов ===== */
 #viewer{position:fixed;inset:0;z-index:70;background:#000;display:flex;align-items:center;justify-content:center;cursor:pointer;touch-action:none}
@@ -303,7 +304,7 @@ html.light #msg .mb-b:active{background:#000;color:#fff}
 
 <div id="sbar"></div>
 <div id="jump" hidden><div class="jl"></div></div>
-<div id="msg" hidden><div class="mb"><div class="mb-in"><div class="mb-t"></div><div class="mb-x"></div><button class="mb-b tilt"></button></div></div></div>
+<div id="msg" hidden><div class="mb"><div class="mb-in"><div class="mb-t"></div><div class="mb-x"></div><div class="mb-btns"><button class="mb-b"></button></div></div></div></div>
 <div id="picker" hidden><div class="pk-in"><div class="pk-title"></div><div class="pk-h"></div><div class="pk-grid"></div></div></div>
 <input type="file" id="wallFile" accept="image/*" hidden>
 <div id="viewer" hidden><img alt=""><div class="v-cnt"></div></div>
@@ -812,23 +813,26 @@ function tick() {
 setInterval(tick, 1000);
 
 /* ================= Сообщение и предупреждение о низком заряде ================= */
-// панель выезжает сверху поворотом вокруг верхнего края, как MessageDialog в WP 8.1
+/* MessageDialog WP 8.1 (по видео, скорость пересчитана с 37 %): затемнение появляется сразу,
+   панель за ~0,2 с доворачивается к зрителю (нижний край был дальше); нажатая кнопка
+   заливается цветом темы, затем панель коротко отворачивается нижним краем и пропадает. */
 function showMsg(title, text, ok) {
   const el = $('#msg');
-  $('.mb-t', el).textContent = title; $('.mb-x', el).textContent = text; $('.mb-b', el).textContent = ok;
+  $('.mb-t', el).textContent = title; $('.mb-x', el).textContent = text;
+  const btn = $('.mb-b', el); btn.textContent = ok; btn.classList.remove('press');
   el.hidden = false; overlayPush();
-  el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: dur(200) });
-  $('.mb', el).animate([{ transform: 'perspective(900px) rotateX(-90deg)' }, { transform: 'none' }], { duration: dur(320), easing: EASE_OUT });
+  $('.mb', el).animate([{ transform: 'perspective(800px) rotateX(-45deg)', opacity: 0 }, { opacity: 1, offset: .2 },
+    { transform: 'perspective(800px) rotateX(0deg)', opacity: 1 }], { duration: dur(200), easing: 'cubic-bezier(.1,.9,.2,1)' });
 }
 let msgClosing = false;
 function closeMsg() {
   const el = $('#msg'); if (el.hidden || msgClosing) return;
   msgClosing = true; overlayPop();
-  el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: dur(180), fill: 'forwards' });
-  $('.mb', el).animate([{ transform: 'none' }, { transform: 'perspective(900px) rotateX(-90deg)' }], { duration: dur(180), easing: EASE_IN, fill: 'forwards' })
+  $('.mb', el).animate([{ transform: 'perspective(800px) rotateX(0deg)' }, { transform: 'perspective(800px) rotateX(-25deg)' }],
+    { duration: dur(90), easing: 'cubic-bezier(.5,0,1,1)', fill: 'forwards' })
     .finished.then(() => { el.hidden = true; el.getAnimations({ subtree: true }).forEach(a => a.cancel()); msgClosing = false; });
 }
-$('#msg .mb-b').addEventListener('click', () => closeMsg());
+$('#msg .mb-b').addEventListener('click', e => { e.currentTarget.classList.add('press'); setTimeout(closeMsg, dur(60)); });
 // предупреждение при 20 %, затем при 10 % и 5 %; на зарядке — сбрасывается
 function lowBattery(pct, charging) {
   let shown = []; try { shown = JSON.parse(sessionStorage.getItem('wp_bat') || '[]'); } catch (e) {}
