@@ -833,10 +833,10 @@ document.addEventListener('pointerleave', release);
 //  out-back (выходим назад)        — уходит СВЕРХУ ВНИЗ, быстро;
 //  in-back  (возвращаемся в список)— появляется СНИЗУ ВВЕРХ, проявляясь из темноты.
 const TURN = {
-  'out-fwd':  { up: true,  step: 40, dur: 150, ang: 80,  extra: 130 },
+  'out-fwd':  { up: true,  step: 26, dur: 140, ang: 75,  extra: 100, lift: true },
   'in-fwd':   { up: false, step: 10, dur: 260, ang: -60 },
   'out-back': { up: false, step: 28, dur: 150, ang: -70 },
-  'in-back':  { up: true,  step: 34, dur: 320, ang: 60,  fade: true }
+  'in-back':  { up: true,  step: 14, dur: 200, flat: true }
 };
 function turnstile(els, mode, first) {
   const H = innerHeight, P = Math.max(1100, innerWidth * 1.3), c = TURN[mode];
@@ -845,9 +845,10 @@ function turnstile(els, mode, first) {
   vis.sort((a, b) => { const ra = rects.get(a), rb = rects.get(b); return (Math.round(ra.top / 8) - Math.round(rb.top / 8)) || (ra.left - rb.left); });
   const isIn = mode.startsWith('in');
   const rot = a => `perspective(${P}px) rotateY(${a}deg)`;
-  const kf = isIn
-    ? (c.fade ? [{ transform: rot(c.ang), opacity: 0 }, { transform: rot(0), opacity: 1 }]
-              : [{ transform: rot(c.ang), opacity: 0 }, { opacity: 1, offset: .15 }, { transform: rot(0), opacity: 1 }])
+  const kf = c.flat ? [{ transform: 'none', opacity: 0 }, { transform: 'none', opacity: 1 }]   // проявляются ровно, без поворота
+    : isIn ? [{ transform: rot(c.ang), opacity: 0 }, { opacity: 1, offset: .15 }, { transform: rot(0), opacity: 1 }]
+    : c.lift ? [{ transform: 'none', opacity: 1 }, { opacity: 1, offset: .65 },               // уходят влево-вверх
+        { transform: `translate(-40px,-56px) ${rot(c.ang)}`, opacity: 0 }]
     : [{ transform: rot(0), opacity: 1 }, { opacity: 1, offset: .8 }, { transform: rot(c.ang), opacity: 0 }];
   // номер строки (элементы одной строки идут вместе)
   const rows = new Map(); let row = -1, lastTop = null;
@@ -856,7 +857,7 @@ function turnstile(els, mode, first) {
   const maxRow = row, lastDelay = Math.min(maxRow, 12) * c.step;
   const anims = vis.map(el => {
     const r = rects.get(el);
-    el.style.transformOrigin = `${-r.left}px ${H / 2 - r.top}px`;   // ось — левый край экрана, перспектива из центра
+    el.style.transformOrigin = c.lift ? `${-r.left}px 50%` : `${-r.left}px ${H / 2 - r.top}px`;   // ось — левый край экрана
     const k = rows.has(el) ? (c.up ? maxRow - rows.get(el) : rows.get(el)) : 0;
     const delay = el === first && !isIn ? lastDelay + c.extra : Math.min(k, 12) * c.step;
     return el.animate(kf, { duration: dur(c.dur), delay: dur(delay), easing: isIn ? EASE_OUT : EASE_IN, fill: 'both' });
