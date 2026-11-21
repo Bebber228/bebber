@@ -174,13 +174,13 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
 
 /* ===== Экран блокировки ===== */
 #lock{position:fixed;inset:0;z-index:100;background:#000 center/cover no-repeat;
-  display:flex;flex-direction:column;justify-content:flex-end;align-items:flex-end;text-align:right;
-  padding:0 max(24px,calc((100vw - var(--w)) / 2)) 96px;
+  display:flex;flex-direction:column;justify-content:flex-end;align-items:flex-start;text-align:left;
+  padding:0 24px 96px;
   touch-action:none;cursor:grab}
 .l-time{font-size:clamp(90px,14vw,150px);font-weight:300;line-height:1;letter-spacing:-3px}
 .l-date{font-size:clamp(30px,4vw,44px);font-weight:300;line-height:1.15;margin-top:6px;white-space:pre-line}
 #lock::before{content:"";position:absolute;inset:0;pointer-events:none;
-  background:linear-gradient(to bottom,#0000 55%,rgba(0,0,0,var(--vignette,.02)))}   /* виньетка: --vignette */
+  background:linear-gradient(to bottom,#0000 55%,rgba(0,0,0,var(--vignette,.05)))}   /* виньетка: --vignette */
 .l-time,.l-date{position:relative}
 .l-hint{position:absolute;bottom:26px;left:0;right:0;text-align:center;font-size:13px;opacity:.55}
 
@@ -827,27 +827,39 @@ document.addEventListener('pointerleave', release);
    Все элементы поворачиваются вокруг ОДНОЙ оси — левого края экрана — с общей точкой
    перспективы, по очереди сверху вниз («перо»). Вперёд: старая страница уходит вглубь,
    новая выворачивается навстречу. Назад — в обратную сторону. Нажатая плитка уходит последней. */
+// Порядок и скорость сняты покадрово с видео WP 8.1:
+//  out-fwd  (открываем приложение) — элементы уходят СНИЗУ ВВЕРХ, нажатый уходит последним после паузы;
+//  in-fwd   (страница приложения)  — появляется почти целиком сразу, быстро;
+//  out-back (выходим назад)        — уходит СВЕРХУ ВНИЗ, быстро;
+//  in-back  (возвращаемся в список)— появляется СНИЗУ ВВЕРХ, проявляясь из темноты.
+const TURN = {
+  'out-fwd':  { up: true,  step: 40, dur: 150, ang: 80,  extra: 130 },
+  'in-fwd':   { up: false, step: 10, dur: 260, ang: -60 },
+  'out-back': { up: false, step: 28, dur: 150, ang: -70 },
+  'in-back':  { up: true,  step: 34, dur: 320, ang: 60,  fade: true }
+};
 function turnstile(els, mode, first) {
-  const H = innerHeight, P = Math.max(1100, innerWidth * 1.3);
+  const H = innerHeight, P = Math.max(1100, innerWidth * 1.3), c = TURN[mode];
   const vis = els.filter(el => { if (el.hidden || !el.getClientRects().length) return false; const r = el.getBoundingClientRect(); return r.bottom >= 0 && r.top < H; });
   const rects = new Map(vis.map(el => [el, el.getBoundingClientRect()]));
   vis.sort((a, b) => { const ra = rects.get(a), rb = rects.get(b); return (Math.round(ra.top / 8) - Math.round(rb.top / 8)) || (ra.left - rb.left); });
-  if (first) { const k = vis.indexOf(first); if (k > -1) { vis.splice(k, 1); vis.push(first); } }
-  const isIn = mode.startsWith('in'), fwd = mode.endsWith('fwd');
-  // вперёд-выход: 0 → 80° (вглубь); вперёд-вход: −80° → 0; назад — зеркально
-  const ang = isIn ? (fwd ? -80 : 70) : (fwd ? 80 : -70);
+  const isIn = mode.startsWith('in');
   const rot = a => `perspective(${P}px) rotateY(${a}deg)`;
   const kf = isIn
-    ? [{ transform: rot(ang), opacity: 0 }, { opacity: 1, offset: .15 }, { transform: rot(0), opacity: 1 }]
-    : [{ transform: rot(0), opacity: 1 }, { opacity: 1, offset: .8 }, { transform: rot(ang), opacity: 0 }];
-  // строки плиток идут с задержкой; элементы одной строки — почти вместе
-  let row = -1, lastTop = null;
+    ? (c.fade ? [{ transform: rot(c.ang), opacity: 0 }, { transform: rot(0), opacity: 1 }]
+              : [{ transform: rot(c.ang), opacity: 0 }, { opacity: 1, offset: .15 }, { transform: rot(0), opacity: 1 }])
+    : [{ transform: rot(0), opacity: 1 }, { opacity: 1, offset: .8 }, { transform: rot(c.ang), opacity: 0 }];
+  // номер строки (элементы одной строки идут вместе)
+  const rows = new Map(); let row = -1, lastTop = null;
+  vis.forEach(el => { if (el === first) return; const r = rects.get(el);
+    if (lastTop === null || Math.abs(r.top - lastTop) > 8) { row++; lastTop = r.top; } rows.set(el, row); });
+  const maxRow = row, lastDelay = Math.min(maxRow, 12) * c.step;
   const anims = vis.map(el => {
     const r = rects.get(el);
     el.style.transformOrigin = `${-r.left}px ${H / 2 - r.top}px`;   // ось — левый край экрана, перспектива из центра
-    if (lastTop === null || Math.abs(r.top - lastTop) > 8) { row++; lastTop = r.top; }
-    const delay = Math.min(row, 10) * (isIn ? 28 : 20) + (el === first ? 70 : 0);
-    return el.animate(kf, { duration: dur(isIn ? 300 : 170), delay: dur(delay), easing: isIn ? EASE_OUT : EASE_IN, fill: 'both' });
+    const k = rows.has(el) ? (c.up ? maxRow - rows.get(el) : rows.get(el)) : 0;
+    const delay = el === first && !isIn ? lastDelay + c.extra : Math.min(k, 12) * c.step;
+    return el.animate(kf, { duration: dur(c.dur), delay: dur(delay), easing: isIn ? EASE_OUT : EASE_IN, fill: 'both' });
   });
   return Promise.all(anims.map(a => a.finished)).then(() => anims, () => anims);
 }
