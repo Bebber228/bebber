@@ -880,10 +880,20 @@ function turnstile(els, mode, first) {
       return el.animate([{ transform: swing(r, c.from, hx), opacity: 0 }, { opacity: 1, offset: .1 }, { transform: swing(r, c.to, hx), opacity: 1 }],
         { duration: dur(c.dur), delay: dur(delay), easing: c.ease, fill: 'both' });
     }
-    if (c.swing) {
+    if (c.swing && onStart) {                        // плитки рабочего стола
       el.style.transformOrigin = '0 0';
       return el.animate([{ transform: swing(r, 0), opacity: 1 }, { transform: swing(r, c.to * .5), opacity: .75, offset: .55 }, { transform: swing(r, c.to), opacity: 0 }],
         { duration: dur(c.dur), delay: dur(delay), easing: c.ease, fill: 'both' });
+    }
+    if (c.swing) {
+      // список (по сильно замедленной съёмке): ось ~30 % ширины левее экрана, перспектива ОЧЕНЬ слабая
+      // (≈ 8 ширин) — пункт не раздувается, а сужается (иконка ~на 17 %), текст лишь слегка наклоняется,
+      // весь пункт уезжает влево ~на 10 % ширины; до конца непрозрачный и пропадает в последний момент
+      el.style.transformOrigin = '0 0';
+      const wl = (rr, a) => `translate(${vpX - rr.left}px,${vpY - rr.top}px) perspective(${sh.width * 8}px) translate(${rr.left - vpX}px,${rr.top - vpY}px) `
+        + `translate(${hingeX - rr.left}px,0) rotateY(${a}deg) translate(${rr.left - hingeX}px,0)`;
+      return el.animate([{ transform: wl(r, 0), opacity: 1 }, { transform: wl(r, -30), opacity: 1, offset: .8 }, { transform: wl(r, -38), opacity: 0 }],
+        { duration: dur(130), delay: dur(delay), easing: 'cubic-bezier(.5,0,.9,.6)', fill: 'both' });
     }
     return el.animate(kf, { duration: dur(c.dur), delay: dur(delay), easing: c.ease, fill: 'both' });
   });
