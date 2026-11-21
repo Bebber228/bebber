@@ -831,17 +831,19 @@ document.addEventListener('pointerleave', release);
             нажатый уходит последним, отдельно;
    in-fwd   страница приложения: элементы СВЕРХУ ВНИЗ быстро доворачиваются ИЗ ГЛУБИНЫ на место;
    out-back выходим назад: элементы СВЕРХУ ВНИЗ уходят ВГЛУБЬ;
-   in-back  возвращаемся в список: элементы СНИЗУ ВВЕРХ проявляются ровно, без поворота;
+   in-back  возвращаемся в список: элементы СНИЗУ ВВЕРХ возвращаются тем же поворотом, но не с самого конца, а проявляясь;
    tiles    рабочий стол: плитки ряд за рядом СНИЗУ ВВЕРХ вылетают ИЗ ГЛУБИНЫ и встают на место. */
 const TURN = {
   'out-fwd':  { up: true,  step: 30, dur: 130, from: 0,  to: -50, cut: .7, ease: 'cubic-bezier(.5,0,1,1)', extra: 90 },
   'in-fwd':   { up: false, step: 30, dur: 170, from: 45, to: 0,   ease: 'cubic-bezier(0,0,.2,1)' },
   'out-back': { up: false, step: 30, dur: 130, from: 0,  to: 50,  cut: .7, ease: 'cubic-bezier(.5,0,1,1)' },
-  'in-back':  { up: true,  step: 30, dur: 160, flat: true, ease: 'linear' },
+  'in-back':  { up: true,  step: 30, dur: 260, from: -28, to: 0, ease: 'cubic-bezier(0,0,.2,1)' },   // тот же поворот, но с полпути и с проявлением
   'tiles':    { up: true,  step: 32, dur: 360, from: 70, to: 0,   ease: 'cubic-bezier(.1,.9,.2,1)' }
 };
 function turnstile(els, mode, first) {
-  const H = innerHeight, P = Math.max(900, innerWidth * 1.1), c = TURN[mode];
+  // ось — у левого края колонки контента (как левый край экрана телефона), перспектива по ширине колонки
+  const H = innerHeight, sh = $('#shell').getBoundingClientRect(), P = Math.max(700, sh.width * 1.3), c = TURN[mode];
+  const axis = Math.max(0, sh.left - 14);
   const vis = els.filter(el => { if (el.hidden || !el.getClientRects().length) return false; const r = el.getBoundingClientRect(); return r.bottom >= 0 && r.top < H; });
   const rects = new Map(vis.map(el => [el, el.getBoundingClientRect()]));
   vis.sort((a, b) => { const ra = rects.get(a), rb = rects.get(b); return (Math.round(ra.top / 8) - Math.round(rb.top / 8)) || (ra.left - rb.left); });
@@ -856,7 +858,7 @@ function turnstile(els, mode, first) {
   const maxRow = row;
   const anims = vis.map(el => {
     const r = rects.get(el);
-    el.style.transformOrigin = `${-r.left}px ${H / 2 - r.top}px`;
+    el.style.transformOrigin = `${axis - r.left}px ${H / 2 - r.top}px`;
     const k = rows.has(el) ? (c.up ? maxRow - rows.get(el) : rows.get(el)) : 0;
     const delay = el === first && c.extra ? Math.min(maxRow, 14) * c.step + c.extra : Math.min(k, 14) * c.step;
     return el.animate(kf, { duration: dur(c.dur), delay: dur(delay), easing: c.ease, fill: 'both' });
@@ -903,10 +905,10 @@ async function go(v) {
   const fwd = v.kind === 'app' && !isBack;
   const outs = await turnstile(items(old), fwd ? 'out-fwd' : 'out-back', fwd ? lastTap : null);
   hideAll(); outs.forEach(a => a.cancel());
+  await pause(60);                                   // пауза — до показа, чтобы содержимое не мелькало
   if (v.kind === 'app') buildPage(v.id);
   views[v.kind].hidden = false;
   scrollTo(0, v.kind === 'app' ? 0 : scrolls[v.kind]);
-  await pause(60);
   const ins = await turnstile(items(v), v.kind === 'start' ? 'tiles' : fwd ? 'in-fwd' : 'in-back');
   ins.forEach(a => a.cancel());
   lastTap = null;
