@@ -50,7 +50,7 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
 #page,#start,#apps{touch-action:pan-y}
 
 /* ===== Строка состояния ===== */
-#status{position:fixed;top:0;left:0;right:0;height:28px;background:#000;z-index:50;display:flex;
+#status{position:fixed;top:0;left:0;right:0;height:28px;background:#000;z-index:130;display:flex;
   justify-content:space-between;align-items:center;padding:0 14px;font-size:13px}
 #status .grp{display:flex;gap:9px;align-items:center}
 .sig{display:flex;align-items:flex-end;gap:2px;height:12px}
@@ -242,6 +242,10 @@ html.light .wp-logo{filter:invert(1)}
 .sw.drag b,.sw.drag i{transition:none}
 .t-s{font-size:20px;font-weight:300}
 
+/* строка состояния: поверх окон (выбор цвета, буквы, сообщение) — прозрачная, чтобы под ней был фон окна;
+   на экране блокировки её нет */
+html.ov #status{background:transparent}
+body.locked #status{visibility:hidden}
 /* ===== Сообщение (MessageDialog WP 8.1, по видео): панель от самого верха, остальное затемнено ===== */
 #msg{position:fixed;inset:0;z-index:120;background:#000000a1;touch-action:none}
 #msg .mb{background:#181a18;padding:54px 0 24px;transform-origin:50% 50%;backface-visibility:hidden}   /* до самого верха, поверх строки состояния */
@@ -250,10 +254,9 @@ html.light .wp-logo{filter:invert(1)}
 #msg .mb-x{font-size:20px;font-weight:400;line-height:1.35;margin:20px 0 30px}
 #msg .mb-btns{display:grid;grid-template-columns:1fr 1fr;gap:22px}
 #msg .mb-b{height:44px;border:3px solid #fff;font-size:19px;font-weight:600;text-align:center;line-height:1}
-#msg .mb-b:active,#msg .mb-b.press{background:var(--accent);border-color:var(--accent);color:#fff}
+#msg .mb-b:active,#msg .mb-b.press{background:var(--accent);color:#fff}
 html.light #msg .mb{background:#fff}
 html.light #msg .mb-b{border-color:#000}
-html.light #msg .mb-b:active,html.light #msg .mb-b.press{border-color:var(--accent)}
 
 /* ===== Просмотр скриншотов ===== */
 #viewer{position:fixed;inset:0;z-index:70;background:#000;display:flex;align-items:center;justify-content:center;cursor:pointer;touch-action:none}
@@ -304,7 +307,7 @@ html.light #msg .mb-b:active,html.light #msg .mb-b.press{border-color:var(--acce
 
 <div id="sbar"></div>
 <div id="jump" hidden><div class="jl"></div></div>
-<div id="msg" hidden><div class="mb"><div class="mb-in"><div class="mb-t"></div><div class="mb-x"></div><div class="mb-btns"><button class="mb-b"></button></div></div></div></div>
+<div id="msg" hidden><div class="mb"><div class="mb-in"><div class="mb-t"></div><div class="mb-x"></div><div class="mb-btns"></div></div></div></div>
 <div id="picker" hidden><div class="pk-in"><div class="pk-title"></div><div class="pk-h"></div><div class="pk-grid"></div></div></div>
 <input type="file" id="wallFile" accept="image/*" hidden>
 <div id="viewer" hidden><img alt=""><div class="v-cnt"></div></div>
@@ -380,7 +383,9 @@ const STR = {
     about: 'обо мне', devices: 'устройства', contacts: 'контакты', projects: 'проекты', settings: 'настройки',
     aboutApp: 'о приложении', screenshots: 'скриншоты', theme: 'тема', language: 'язык', site: 'о сайте',
     accent: 'цвет элементов', lockToggle: 'экран блокировки при входе', on: 'вкл.', off: 'выкл.',
-    reset: 'сбросить настройки', search: 'поиск приложений', lockHint: 'потяните вверх, чтобы разблокировать',
+    reset: 'сбросить настройки', resetT: 'Сбросить настройки?',
+    resetX: 'Цвет элементов, фон, обои рабочего стола, язык и экран блокировки вернутся к исходным значениям.',
+    confirm: 'подтвердить', cancel: 'отмена', search: 'поиск приложений', lockHint: 'потяните вверх, чтобы разблокировать',
     batT: 'Критический низкий уровень заряда аккумулятора',
     batX: 'Не пропустите ничего важного! Рекомендуется зарядить устройство в ближайшее время, иначе он отключится.', ok: 'ок',
     allApps: 'все приложения', writeMe: 'напишите мне', tagline: 'разработчик приложений для Windows Phone',
@@ -405,7 +410,9 @@ const STR = {
     about: 'about me', devices: 'devices', contacts: 'contacts', projects: 'projects', settings: 'settings',
     aboutApp: 'about', screenshots: 'screenshots', theme: 'theme', language: 'language', site: 'about site',
     accent: 'accent colour', lockToggle: 'lock screen on start', on: 'on', off: 'off',
-    reset: 'reset settings', search: 'search apps', lockHint: 'swipe up to unlock',
+    reset: 'reset settings', resetT: 'Reset settings?',
+    resetX: 'Accent colour, background, start wallpaper, language and lock screen will go back to their defaults.',
+    confirm: 'confirm', cancel: 'cancel', search: 'search apps', lockHint: 'swipe up to unlock',
     batT: 'Critically low battery',
     batX: "Don't miss anything important! Charge your device soon, otherwise it will turn off.", ok: 'ok',
     allApps: 'all apps', writeMe: 'get in touch', tagline: 'Windows Phone app developer',
@@ -600,7 +607,9 @@ const APPS = {
       `<button class="btn ts tilt" id="reset">${t('reset')}</button>` +
       `<div class="credits ts"><div class="cr-in"><img class="wp-logo" src="img/wp-logo.png" alt="Windows Phone" draggable="false">
         <div class="cr">${t('tm1')}<br>${t('tm2')}<br>${t('tm3')}</div></div></div>`,
-      mount: b => { $('#reset', b).onclick = () => { store.clear(); setAccent(CONFIG.accent); applyTheme(); applyWall(); langPref = 'auto'; applyLang(); }; } }
+      mount: b => { $('#reset', b).onclick = () => showMsg(t('resetT'), t('resetX'), [
+        { t: t('confirm'), fn: () => { store.clear(); setAccent(CONFIG.accent); applyTheme(); applyWall(); langPref = 'auto'; applyLang(); } },
+        { t: t('cancel') }]); } }
   ]}
 };
 // страница для каждого проекта: описание + кнопка Live Store, скриншоты
@@ -816,27 +825,32 @@ setInterval(tick, 1000);
 /* MessageDialog WP 8.1 (по видео, скорость пересчитана с 37 %): затемнение появляется сразу,
    панель за ~0,2 с доворачивается к зрителю (нижний край был дальше); нажатая кнопка
    заливается цветом темы, затем панель коротко отворачивается нижним краем и пропадает. */
-function showMsg(title, text, ok) {
-  const el = $('#msg');
+// btns: [{ t: 'подтвердить', fn }, { t: 'отмена' }] — fn вызывается после закрытия
+function showMsg(title, text, btns) {
+  const el = $('#msg'), box = $('.mb-btns', el);
   $('.mb-t', el).textContent = title; $('.mb-x', el).textContent = text;
-  const btn = $('.mb-b', el); btn.textContent = ok; btn.classList.remove('press');
+  box.innerHTML = '';
+  btns.forEach(bt => {
+    const btn = document.createElement('button'); btn.className = 'mb-b'; btn.textContent = bt.t;
+    btn.onclick = () => { if (msgClosing) return; btn.classList.add('press'); setTimeout(() => closeMsg(bt.fn), dur(60)); };
+    box.appendChild(btn);
+  });
   el.hidden = false; overlayPush();
   $('.mb', el).animate([{ transform: 'perspective(800px) rotateX(-45deg)', opacity: 0 }, { opacity: 1, offset: .2 },
     { transform: 'perspective(800px) rotateX(0deg)', opacity: 1 }], { duration: dur(200), easing: 'cubic-bezier(.1,.9,.2,1)' });
 }
 let msgClosing = false;
-function closeMsg() {
+function closeMsg(fn) {
   const el = $('#msg'); if (el.hidden || msgClosing) return;
   msgClosing = true; overlayPop();
   $('.mb', el).animate([{ transform: 'perspective(800px) rotateX(0deg)' }, { transform: 'perspective(800px) rotateX(-25deg)' }],
     { duration: dur(90), easing: 'cubic-bezier(.5,0,1,1)', fill: 'forwards' })
-    .finished.then(() => { el.hidden = true; el.getAnimations({ subtree: true }).forEach(a => a.cancel()); msgClosing = false; });
+    .finished.then(() => { el.hidden = true; el.getAnimations({ subtree: true }).forEach(a => a.cancel()); msgClosing = false; if (fn) fn(); });
 }
-$('#msg .mb-b').addEventListener('click', e => { e.currentTarget.classList.add('press'); setTimeout(closeMsg, dur(60)); });
-// сообщение ждёт, пока откроется рабочий стол (после экрана блокировки и появления плиток)
-let msgPending = null;
+// сообщение показывается везде, кроме экрана блокировки (и ждёт, пока после входа появятся плитки)
+let msgPending = null, booted = false;
 function queueMsg(...a) { msgPending = a; flushMsg(); }
-const msgReady = () => lock.hidden && cur && cur.kind === 'start' && !PAN.on;
+const msgReady = () => booted && lock.hidden && !PAN.on && $('#msg').hidden;
 function flushMsg() {
   if (!msgPending || !msgReady()) return;
   setTimeout(() => { if (msgPending && msgReady()) { const a = msgPending; msgPending = null; showMsg(...a); } }, dur(250));
@@ -849,7 +863,7 @@ function lowBattery(pct, charging) {
   const lvl = [20, 10, 5].filter(x => pct <= x).pop();
   if (!lvl || shown.includes(lvl)) return;
   shown.push(lvl); save();
-  queueMsg(t('batT'), t('batX'), t('ok'));
+  queueMsg(t('batT'), t('batX'), [{ t: t('ok') }]);
 }
 
 /* ================= Батарея (Battery Status API) ================= */
@@ -917,6 +931,9 @@ function jumpMosaic(show, btns = $$('#jump .jl button')) {
 function overlayPush() { try { history.pushState({ ov: 1 }, ''); } catch (e) {} }
 function overlayPop() { try { if (history.state && history.state.ov) history.back(); } catch (e) {} }
 addEventListener('popstate', () => { if (!$('#msg').hidden) closeMsg(); if (!$('#picker').hidden) closePicker(); if (!$('#jump').hidden) closeJump(); });
+const OVERLAYS = ['#msg', '#picker', '#jump', '#viewer'];
+const syncOv = () => document.documentElement.classList.toggle('ov', OVERLAYS.some(s => !$(s).hidden));
+new MutationObserver(syncOv).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['hidden'] });
 let pk = null;
 function openPicker(o) {
   pk = o;
@@ -1311,7 +1328,7 @@ async function go(v) {
   scrollTo(0, v.kind === 'app' ? 0 : scrolls[v.kind]);
   const ins = await turnstile(items(v), v.kind === 'start' ? 'tiles' : fwd ? 'in-fwd' : 'in-back');
   ins.forEach(a => a.cancel());
-  if (v.kind === 'start') flushMsg();
+  flushMsg();
   lastTap = null;
 }
 let queue = Promise.resolve();
@@ -1376,7 +1393,7 @@ function panEnd(to) {
   document.documentElement.style.overflow = '';
   scrollTo(0, scrolls[to]);
   PAN.on = false;
-  if (to === 'start') flushMsg();
+  flushMsg();
 }
 async function panAnimate(from, to) {
   panBegin(from);
@@ -1447,7 +1464,7 @@ function setLang(k) { langPref = k; store.set('lang', k); applyLang(); }
 /* ================= Экран блокировки ================= */
 const lock = $('#lock');
 lock.style.backgroundImage = `url('img/lock/${WALLPAPERS[Math.random() * WALLPAPERS.length | 0]}')`;
-function intro() { turnstile(items(cur), cur.kind === 'start' ? 'tiles' : 'in-fwd').then(a => { a.forEach(x => x.cancel()); flushMsg(); }); }
+function intro() { turnstile(items(cur), cur.kind === 'start' ? 'tiles' : 'in-fwd').then(a => { a.forEach(x => x.cancel()); booted = true; flushMsg(); }); }
 /* Экран блокировки как в WP 8.1 (замерено покадрово по замедленной съёмке):
    • нажатие — экран чуть подпрыгивает (~4,4 % высоты), падает и ещё раз отскакивает (~1,9 %);
    • тянем вверх — экран идёт за пальцем; отпустили — летит вверх по инерции и замедляется;
