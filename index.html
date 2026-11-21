@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<title>Bebber</title>
+<style>
+/* ===== Шрифты: Segoe WP, если установлен (или лежит в папке fonts/), иначе Segoe UI ===== */
+@font-face{font-family:"WP";font-weight:300;src:local("Segoe WP Light"),local("SegoeWP-Light"),url("fonts/SegoeWP-Light.woff2") format("woff2"),local("Segoe UI Light"),local("SegoeUI-Light")}
+@font-face{font-family:"WP";font-weight:400;src:local("Segoe WP"),local("SegoeWP"),url("fonts/SegoeWP.woff2") format("woff2"),local("Segoe UI"),local("SegoeUI")}
+@font-face{font-family:"WP";font-weight:600;src:local("Segoe WP Semibold"),local("SegoeWP-Semibold"),url("fonts/SegoeWP-Semibold.woff2") format("woff2"),local("Segoe UI Semibold"),local("SegoeUI-Semibold")}
+
+:root{
+  --accent:#1BA1E2;
+  --cols:8;
+  --gap:6px;
+  --w:min(calc(100vw - 32px),1040px);
+  --cell:calc((var(--w) - (var(--cols) - 1) * var(--gap)) / var(--cols));
+  --ease:cubic-bezier(.1,.9,.2,1);
+}
+@media (max-width:640px){:root{--cols:4;--gap:5px;--w:calc(100vw - 20px)}}
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{background:#000;scrollbar-color:#333 #000}
+body{margin:0;padding:44px 0 76px;background:#000;color:#fff;
+  font-family:"WP","Segoe WP","Segoe UI","Selawik","Open Sans",Tahoma,sans-serif;
+  -webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent;overflow-x:hidden;
+  user-select:none;-webkit-user-select:none}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+#shell{width:var(--w);margin:0 auto;position:relative}
+
+/* ===== Строка состояния ===== */
+#status{position:fixed;top:0;left:0;right:0;height:28px;background:#000;z-index:50;display:flex;
+  justify-content:space-between;align-items:center;padding:0 14px;font-size:13px}
+#status .grp{display:flex;gap:9px;align-items:center}
+.sig{display:flex;align-items:flex-end;gap:2px;height:12px}
+.sig i{display:block;width:3px;background:#fff}
+.bat{width:22px;height:11px;border:1.5px solid #fff;position:relative;padding:1.5px}
+.bat::after{content:"";position:absolute;right:-4px;top:2.5px;width:2px;height:4px;background:#fff}
+.bat i{display:block;height:100%;width:72%;background:#fff}
+
+/* ===== Плитки ===== */
+.grid{display:grid;grid-template-columns:repeat(var(--cols),var(--cell));grid-auto-rows:var(--cell);
+  gap:var(--gap);grid-auto-flow:dense}
+.tile{position:relative;display:block;cursor:pointer;outline:none}
+.tile.s{grid-column:span 1;grid-row:span 1}
+.tile.m{grid-column:span 2;grid-row:span 2}
+.tile.w{grid-column:span 4;grid-row:span 2}
+.tile.l{grid-column:span 4;grid-row:span 4}
+.tile-body{position:absolute;inset:0;overflow:hidden;perspective:900px;transition:transform .12s ease-out}
+.tile.flip .tile-body{overflow:visible}
+.tile-in{position:absolute;inset:0}
+.face{position:absolute;left:0;right:0;top:0;height:100%;background:var(--tbg,var(--accent));
+  display:flex;align-items:center;justify-content:center;overflow:hidden}
+.tile.peek .tile-in{bottom:auto;height:200%;transition:transform .9s var(--ease)}
+.tile.peek .face{height:50%}
+.tile.peek .back{top:50%}
+.tile.peek.on .tile-in{transform:translateY(-50%)}
+.tile.flip .tile-in{transform-style:preserve-3d;transition:transform .9s var(--ease)}
+.tile.flip .face{backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.tile.flip .back{transform:rotateX(180deg)}
+.tile.flip.on .tile-in{transform:rotateX(180deg)}
+.face svg{width:calc(var(--cell) * .55);height:auto;stroke:#fff;fill:none;stroke-width:1.4;stroke-linecap:square}
+.tile.m .face svg,.tile.w .face svg{width:calc(var(--cell) * .72)}
+.label{position:absolute;left:8px;bottom:6px;font-size:14px;line-height:1.1}
+.count{font-size:calc(var(--cell) * .5);font-weight:300;margin-left:10px;line-height:1}
+.tile.s .count{position:absolute;right:6px;bottom:4px;font-size:15px;margin:0}
+.back{flex-direction:column;justify-content:flex-start;align-items:flex-start;padding:10px 12px 28px;text-align:left}
+.b-title{font-size:21px;margin-bottom:4px;line-height:1.15}
+.b-text{font-size:15px;line-height:1.3;opacity:.92}
+.clock{width:100%;height:100%;display:flex;flex-direction:column;justify-content:flex-end;padding:8px 12px 10px}
+.c-time{font-size:calc(var(--cell) * .95);font-weight:300;line-height:1;letter-spacing:-2px}
+.c-day{font-size:calc(var(--cell) * .38);font-weight:300;line-height:1.1}
+.c-date{font-size:calc(var(--cell) * .22)}
+.more{display:flex;justify-content:flex-end;margin:24px 0 8px}
+.more span{width:44px;height:44px;border:2px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center}
+.more svg{width:22px;stroke:#fff;fill:none;stroke-width:2}
+
+/* ===== Список приложений ===== */
+.search{width:100%;height:42px;border:2px solid transparent;background:#ffffffcc;color:#000;font:inherit;
+  font-size:17px;padding:0 10px;outline:none;margin:4px 0 6px;border-radius:0;user-select:text}
+.search:focus{background:#fff;border-color:var(--accent)}
+.letter{width:52px;height:52px;border:2px solid var(--accent);color:var(--accent);font-size:30px;font-weight:300;
+  display:flex;align-items:flex-end;padding:0 0 3px 7px;margin:18px 0 8px;line-height:1}
+.app-row{display:flex;align-items:center;gap:14px;padding:5px 0;font-size:22px;width:max-content;max-width:100%}
+.app-ico{width:52px;height:52px;background:var(--accent);display:flex;align-items:center;justify-content:center;flex:none}
+.app-ico svg{width:28px;stroke:#fff;fill:none;stroke-width:1.6}
+#jump{position:fixed;inset:0;z-index:60;background:#000000ee;display:flex;align-items:center;justify-content:center;padding:40px 16px}
+#jump .jl{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;width:min(100%,460px)}
+#jump button{aspect-ratio:1;font-size:30px;font-weight:300;display:flex;align-items:flex-end;padding:0 0 4px 8px;background:#1d1d1d;color:#555}
+#jump button.has{background:var(--accent);color:#fff}
+
+/* ===== Страница приложения (pivot) ===== */
+.app-title{font-size:15px;font-weight:600;letter-spacing:.6px;margin:6px 0 0}
+.pivot-heads{white-space:nowrap;overflow:hidden;margin:0 0 16px -2px}
+.ph{font-size:clamp(44px,7vw,68px);font-weight:300;margin-right:26px;color:#ffffff59;line-height:1.25;letter-spacing:-1px}
+.ph.on{color:#fff}
+.pivot-body{min-height:60vh;touch-action:pan-y}
+.li{display:block;padding:8px 0 10px;width:max-content;max-width:100%}
+.li-t{font-size:28px;font-weight:300;line-height:1.15}
+.li-s{font-size:15px;color:var(--accent);margin-top:2px}
+.txt{font-size:19px;line-height:1.45;color:#ddd;max-width:760px;margin:0 0 16px;font-weight:300}
+.txt.lead{font-size:27px;color:#fff}
+.sub-h{font-size:15px;color:#9a9a9a;margin:18px 0 10px}
+.colors{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:8px;max-width:620px}
+.colors button{aspect-ratio:1;border:3px solid transparent}
+.colors button.on{border-color:#fff}
+.btn{border:2px solid #fff;padding:6px 20px;font-size:16px;margin-top:10px}
+.btn:active{background:#fff;color:#000}
+.toggle{display:block;margin:26px 0 0;cursor:pointer}
+.t-l{display:block;font-size:15px;color:#9a9a9a;margin-bottom:6px}
+.t-r{display:flex;align-items:center;gap:14px}
+.toggle input{position:absolute;opacity:0;pointer-events:none}
+.sw{width:56px;height:24px;border:2px solid #fff;position:relative;display:block}
+.sw::before{content:"";position:absolute;left:3px;top:3px;bottom:3px;width:0;background:var(--accent);transition:width .2s}
+.sw::after{content:"";position:absolute;top:-4px;left:-2px;width:12px;height:28px;background:#fff;transition:left .2s}
+.toggle input:checked+.sw::before{width:calc(100% - 6px)}
+.toggle input:checked+.sw::after{left:42px}
+.t-s{font-size:20px;font-weight:300}
+
+/* ===== Нижняя панель (назад / пуск / поиск) ===== */
+#nav{position:fixed;bottom:0;left:0;right:0;height:52px;background:#000;display:flex;justify-content:space-around;align-items:center;z-index:50}
+#nav button{width:90px;height:52px;display:flex;align-items:center;justify-content:center}
+#nav svg{width:24px;stroke:#fff;fill:none;stroke-width:1.6}
+#nav button:active svg{stroke:var(--accent)}
+
+/* ===== Экран блокировки ===== */
+#lock{position:fixed;inset:0;z-index:100;background:#000;
+  background:radial-gradient(ellipse at 30% 15%,color-mix(in srgb,var(--accent) 50%,#000) 0%,#000 72%);
+  display:flex;flex-direction:column;justify-content:flex-end;padding:0 max(24px,calc((100vw - var(--w)) / 2)) 96px;
+  touch-action:none;cursor:grab}
+.l-time{font-size:clamp(90px,14vw,150px);font-weight:300;line-height:1;letter-spacing:-3px}
+.l-date{font-size:clamp(24px,3vw,32px);font-weight:300;margin-top:4px}
+.l-hint{position:absolute;bottom:26px;left:0;right:0;text-align:center;font-size:13px;opacity:.55}
+
+@media (prefers-reduced-motion:reduce){.tile-in,.tile-body{transition:none!important}}
+</style>
+</head>
+<body>
+
+<div id="lock" hidden>
+  <div class="l-time"></div>
+  <div class="l-date"></div>
+  <div class="l-hint">потяните вверх или нажмите, чтобы разблокировать</div>
+</div>
+
+<div id="status">
+  <div class="grp"><span class="sig"><i style="height:4px"></i><i style="height:6px"></i><i style="height:8px"></i><i style="height:10px"></i><i style="height:12px"></i></span></div>
+  <div class="grp"><span class="bat"><i></i></span><span id="sTime"></span></div>
+</div>
+
+<div id="shell">
+  <section id="start" hidden>
+    <div class="grid" id="tiles"></div>
+    <a class="more" href="#/apps" aria-label="все приложения"><span class="tilt"></span></a>
+  </section>
+
+  <section id="apps" hidden>
+    <input class="search ts" id="search" type="search" placeholder="поиск приложений" autocomplete="off">
+    <div id="appList"></div>
+  </section>
+
+  <section id="page" hidden></section>
+</div>
+
+<div id="jump" hidden><div class="jl"></div></div>
+
+<nav id="nav">
+  <button id="bBack" aria-label="назад"></button>
+  <button id="bHome" aria-label="пуск"></button>
+  <button id="bSearch" aria-label="поиск"></button>
+</nav>
+
+<script>
+(() => {
+'use strict';
+
+/* ================= НАСТРОЙКИ — меняйте здесь ================= */
+const CONFIG = {
+  name: 'Bebber',
+  accent: '#1BA1E2',          // цвет по умолчанию (кобальт/голубой WP)
+  lockScreen: true,           // показывать экран блокировки при входе
+  github: 'https://github.com/USERNAME',
+  email: 'you@example.com',
+  telegram: 'https://t.me/USERNAME'
+};
+
+const PROJECTS = [
+  { name: 'ArtHub',           sub: 'моё приложение · Windows Phone 8',            url: '#' },
+  { name: 'WpMirror',         sub: 'зеркало экрана телефона на ПК по USB',        url: '#' },
+  { name: 'MSN Money Stocks', sub: 'порт с WP7 на Windows Phone 8.1',             url: '#' },
+  { name: 'OZON',             sub: 'возрождение приложения OZON.ru',              url: '#' },
+  { name: 'Avito',            sub: 'порт Avito с WP7 на 8.1',                     url: '#' },
+  { name: 'Treasure Clicker', sub: 'кликер на Nokia Treasure Tag',                url: '#' },
+  { name: 'OpenTracks',       sub: 'музыкальный клиент в стиле старого WP',       url: '#' }
+];
+
+/* Плитки рабочего стола. size: s 1×1, m 2×2, w 4×2, l 4×4.
+   live: 'flip' (переворот) или 'peek' (выезд вверх). to: внутренняя ссылка, href: внешняя. */
+const TILES = [
+  { size: 'w', type: 'clock', live: 'peek' },
+  { size: 'm', to: '#/app/about', label: 'обо мне', icon: 'person', live: 'flip',
+    back: `<div class="b-title">${CONFIG.name}</div><div class="b-text">разработчик приложений для Windows Phone</div>` },
+  { size: 'm', to: '#/app/contact', label: 'контакты', icon: 'mail', count: 1, live: 'peek',
+    back: `<div class="b-title">напишите мне</div><div class="b-text">${CONFIG.email}</div>` },
+  { size: 'w', to: '#/app/projects', label: 'проекты', icon: 'code', live: 'flip', feed: true },
+  { size: 'm', to: '#/app/skills', label: 'навыки', icon: 'star', live: 'peek',
+    back: `<div class="b-title">C# · XAML</div><div class="b-text">Silverlight, WinRT, WinForms</div>` },
+  { size: 's', to: '#/app/settings', icon: 'gear' },
+  { size: 's', href: CONFIG.github, icon: 'ext' },
+  { size: 's', to: '#/apps', icon: 'grid' },
+  { size: 's', to: '#/app/about', icon: 'phone' }
+];
+
+const ACCENTS = [
+  ['лайм','#A4C400'],['зелёный','#60A917'],['изумрудный','#008A00'],['бирюзовый','#00ABA9'],
+  ['голубой','#1BA1E2'],['кобальт','#0050EF'],['индиго','#6A00FF'],['фиолетовый','#AA00FF'],
+  ['розовый','#F472D0'],['пурпурный','#D80073'],['малиновый','#A20025'],['красный','#E51400'],
+  ['оранжевый','#FA6800'],['янтарный','#F0A30A'],['жёлтый','#E3C800'],['коричневый','#825A2C'],
+  ['оливковый','#6D8764'],['стальной','#647687'],['лиловый','#76608A'],['серо-коричневый','#87794E']
+];
+
+/* ================= Иконки ================= */
+const I = {
+  person: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/>',
+  mail:   '<rect x="3" y="5" width="18" height="14"/><path d="M3 5l9 8 9-8"/>',
+  code:   '<path d="M8 6l-6 6 6 6M16 6l6 6-6 6"/>',
+  star:   '<path d="M12 2.5l2.9 6.4 7 .7-5.3 4.7 1.5 6.9L12 17.7l-6.1 3.5 1.5-6.9L2.1 9.6l7-.7z"/>',
+  gear:   '<circle cx="12" cy="12" r="3.5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9L7 7M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>',
+  ext:    '<path d="M10 14L21 3M14 3h7v7M19 14v7H3V5h7"/>',
+  grid:   '<rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/>',
+  phone:  '<rect x="6" y="2" width="12" height="20"/><path d="M10 18h4"/>',
+  back:   '<path d="M20 12H4M10 6l-6 6 6 6"/>',
+  search: '<circle cx="10" cy="10" r="6.5"/><path d="M15 15l6 6"/>',
+  arrow:  '<path d="M4 12h16M14 6l6 6-6 6"/>'
+};
+const svg = n => `<svg viewBox="0 0 24 24" aria-hidden="true">${I[n] || ''}</svg>`;
+
+/* ================= Утилиты ================= */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const store = {
+  get(k, d) { try { const v = localStorage.getItem('wp_' + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem('wp_' + k, JSON.stringify(v)); } catch (e) {} },
+  clear() { try { Object.keys(localStorage).filter(k => k.startsWith('wp_')).forEach(k => localStorage.removeItem(k)); } catch (e) {} }
+};
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const dur = ms => REDUCED ? 1 : ms;
+const EASE_OUT = 'cubic-bezier(.1,.9,.2,1)';
+const EASE_IN = 'cubic-bezier(.7,0,1,.5)';
+const pad = n => String(n).padStart(2, '0');
+const isExt = h => /^(https?:|mailto:)/.test(h);
+
+const getAccent = () => store.get('accent', CONFIG.accent);
+function setAccent(c) { document.documentElement.style.setProperty('--accent', c); store.set('accent', c); }
+setAccent(getAccent());
+
+/* ================= Разметка ================= */
+const link = (href, inner, cls) => href && href !== '#'
+  ? `<a class="${cls}" href="${href}"${isExt(href) ? ' target="_blank" rel="noopener"' : ''}>${inner}</a>`
+  : `<div class="${cls}">${inner}</div>`;
+const li = (t, s, href) => link(href, `<div class="li-t">${t}</div>${s ? `<div class="li-s">${s}</div>` : ''}`,
+  'li ts' + (href && href !== '#' ? ' tilt' : ''));
+const p = (t, cls = '') => `<p class="txt ${cls} ts">${t}</p>`;
+const short = u => u.replace(/^(https?:\/\/|mailto:)/, '');
+const toggle = (id, label, on) => `<label class="toggle ts"><span class="t-l">${label}</span><span class="t-r">
+  <input type="checkbox" id="tg-${id}"${on ? ' checked' : ''}><span class="sw"></span><span class="t-s">${on ? 'вкл.' : 'выкл.'}</span></span></label>`;
+
+const APPS = {
+  about: { title: 'обо мне', icon: 'person', pivots: [
+    { h: 'обо мне', render: () =>
+      p(`Привет! Я ${CONFIG.name}.`, 'lead') +
+      p('Разрабатываю приложения для Windows Phone: возвращаю к жизни старые программы с WP7, переношу их на Windows Phone 8.1 и делаю свои — в том самом стиле Metro.') +
+      p('Этот сайт устроен как Windows Phone 8.1: живые плитки, анимация «турникет» при переходах, наклон плиток при нажатии и смена цвета элементов.') },
+    { h: 'устройства', render: () => li('Lumia 830', 'основной тестовый телефон') + li('Windows Phone 8.1', 'второй телефон для проверки') }
+  ]},
+  projects: { title: 'проекты', icon: 'code', pivots: [
+    { h: 'проекты', render: () => PROJECTS.map(x => li(x.name, x.sub, x.url)).join('') },
+    { h: 'github', render: () => p('Исходники и релизы — на GitHub.') + li('github', short(CONFIG.github), CONFIG.github) }
+  ]},
+  skills: { title: 'навыки', icon: 'star', pivots: [
+    { h: 'навыки', render: () => li('C#', 'основной язык') + li('XAML', 'интерфейсы Silverlight и WinRT') +
+      li('Windows Phone 7 / 8 / 8.1', 'Silverlight и Windows Runtime') + li('WinForms', 'настольные утилиты') },
+    { h: 'инструменты', render: () => li('Visual Studio 2013', 'Update 5') + li('Windows Phone SDK 8', 'эмулятор и инструменты') +
+      li('Git', 'и GitHub Pages для этого сайта') }
+  ]},
+  contact: { title: 'контакты', icon: 'mail', pivots: [
+    { h: 'контакты', render: () => li('почта', CONFIG.email, 'mailto:' + CONFIG.email) +
+      li('github', short(CONFIG.github), CONFIG.github) + li('telegram', short(CONFIG.telegram), CONFIG.telegram) }
+  ]},
+  settings: { title: 'настройки', icon: 'gear', pivots: [
+    { h: 'тема', render: () =>
+      `<div class="sub-h ts">цвет элементов</div><div class="colors ts">${ACCENTS.map(([n, c]) =>
+        `<button title="${n}" data-c="${c}" style="background:${c}"${c.toLowerCase() === getAccent().toLowerCase() ? ' class="on"' : ''}></button>`).join('')}</div>
+       <div class="sub-h ts" id="accName"></div>` + toggle('lock', 'экран блокировки при входе', store.get('lock', CONFIG.lockScreen)),
+      mount: b => {
+        const name = () => { const a = ACCENTS.find(x => x[1].toLowerCase() === getAccent().toLowerCase()); $('#accName', b).textContent = a ? a[0] : ''; };
+        name();
+        $$('.colors button', b).forEach(btn => btn.onclick = () => {
+          setAccent(btn.dataset.c); $$('.colors button', b).forEach(x => x.classList.toggle('on', x === btn)); name();
+        });
+        const t = $('#tg-lock', b);
+        t.onchange = () => { store.set('lock', t.checked); t.parentNode.querySelector('.t-s').textContent = t.checked ? 'вкл.' : 'выкл.'; };
+      } },
+    { h: 'о сайте', render: () =>
+      p('Сайт в стиле Windows Phone 8.1. Один файл index.html, без библиотек, размещён на GitHub Pages.') +
+      p('Шрифт — Segoe WP, если он есть на устройстве или в папке fonts/, иначе Segoe UI.') +
+      `<button class="btn ts tilt" id="reset">сбросить настройки</button>`,
+      mount: b => { $('#reset', b).onclick = () => { store.clear(); setAccent(CONFIG.accent); }; } }
+  ]}
+};
+
+/* ================= Рабочий стол ================= */
+function tileHTML(t) {
+  const tag = t.href ? 'a' : t.to ? 'a' : 'div';
+  const attrs = t.href ? ` href="${t.href}" target="_blank" rel="noopener"` : t.to ? ` href="${t.to}"` : '';
+  const label = t.size !== 's' && t.label ? `<span class="label">${t.label}</span>` : '';
+  let front, back = '';
+  if (t.type === 'clock') {
+    front = '<div class="clock"><div class="c-time"></div></div>';
+    back = '<div class="clock"><div class="c-day"></div><div class="c-date"></div></div>';
+  } else {
+    front = svg(t.icon) + (t.count ? `<span class="count">${t.count}</span>` : '') + label;
+    back = (t.feed ? '<div class="feed"></div>' : (t.back || '')) + label;
+  }
+  return `<${tag} class="tile ${t.size} ${t.live || ''}"${attrs}${t.feed ? ' data-feed="1"' : ''}>
+    <div class="tile-body tilt"><div class="tile-in"><div class="face front">${front}</div>${t.live ? `<div class="face back">${back}</div>` : ''}</div></div></${tag}>`;
+}
+$('#tiles').innerHTML = TILES.map(tileHTML).join('');
+$('.more span').innerHTML = svg('arrow');
+
+let feedIdx = 0;
+function flipTile(t) {
+  const on = t.classList.contains('on');
+  if (!on && t.dataset.feed) {
+    const x = PROJECTS[feedIdx++ % PROJECTS.length];
+    $('.feed', t).innerHTML = `<div class="b-title">${x.name}</div><div class="b-text">${x.sub}</div>`;
+  }
+  t.classList.toggle('on');
+}
+(function liveLoop() {
+  setTimeout(() => {
+    if (cur && cur.kind === 'start' && !document.hidden && !$('#lock:not([hidden])')) {
+      const list = $$('#start .tile.flip, #start .tile.peek').filter(t => {
+        const r = t.getBoundingClientRect(); return r.bottom > 0 && r.top < innerHeight;
+      });
+      if (list.length) flipTile(list[Math.random() * list.length | 0]);
+    }
+    liveLoop();
+  }, 1800 + Math.random() * 2600);
+})();
+
+/* ================= Часы ================= */
+function tick() {
+  const d = new Date(), time = d.getHours() + ':' + pad(d.getMinutes());
+  const day = d.toLocaleDateString('ru-RU', { weekday: 'long' });
+  const date = d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
+  $('#sTime').textContent = time;
+  $$('.c-time').forEach(e => e.textContent = time);
+  $$('.c-day').forEach(e => e.textContent = day);
+  $$('.c-date').forEach(e => e.textContent = date);
+  $('.l-time').textContent = time;
+  $('.l-date').textContent = day + ', ' + date;
+}
+tick(); setInterval(tick, 1000);
+
+/* ================= Список приложений ================= */
+const APP_LIST = Object.entries(APPS).map(([id, a]) => ({ name: a.title, icon: a.icon, to: '#/app/' + id }))
+  .concat([{ name: 'github', icon: 'ext', href: CONFIG.github }])
+  .sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+const letterOf = n => n[0].toLowerCase();
+function renderAppList() {
+  let html = '', last = '';
+  APP_LIST.forEach(a => {
+    const L = letterOf(a.name);
+    if (L !== last) { html += `<button class="letter ts" data-l="${L}">${L}</button>`; last = L; }
+    const attrs = a.href ? `href="${a.href}" target="_blank" rel="noopener"` : `href="${a.to}"`;
+    html += `<a class="app-row ts tilt" data-n="${a.name}" ${attrs}><span class="app-ico">${svg(a.icon)}</span><span>${a.name}</span></a>`;
+  });
+  $('#appList').innerHTML = html;
+}
+renderAppList();
+
+$('#search').addEventListener('input', e => {
+  const q = e.target.value.trim().toLowerCase();
+  $$('#appList .app-row').forEach(r => r.hidden = q && !r.dataset.n.includes(q));
+  $$('#appList .letter').forEach(l => l.hidden = !!q);
+});
+
+const ALPHA = [...new Set(APP_LIST.map(a => letterOf(a.name)).filter(l => /[a-z]/.test(l)))]
+  .concat([...'абвгдеёжзийклмнопрстуфхцчшщэюя']);
+$('#appList').addEventListener('click', e => {
+  if (!e.target.closest('.letter')) return;
+  const has = new Set(APP_LIST.map(a => letterOf(a.name)));
+  const jl = $('#jump .jl');
+  jl.innerHTML = ALPHA.map(l => `<button class="${has.has(l) ? 'has' : ''}" data-l="${l}">${l}</button>`).join('');
+  $('#jump').hidden = false;
+  jl.animate([{ transform: 'scale(1.15)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: dur(260), easing: EASE_OUT });
+});
+$('#jump').addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (b && !b.classList.contains('has')) return;
+  $('#jump').hidden = true;
+  if (b) { const t = $(`#appList .letter[data-l="${b.dataset.l}"]`); if (t) scrollTo(0, t.getBoundingClientRect().top + scrollY - 40); }
+});
+
+/* ================= Страница с pivot ================= */
+function buildPage(id) {
+  const app = APPS[id], page = $('#page');
+  page.innerHTML = `<div class="app-title ts">${CONFIG.name.toUpperCase()}</div><div class="pivot-heads ts"></div><div class="pivot-body"></div>`;
+  page._app = app;
+  showPivot(0, 0);
+}
+function showPivot(i, dir) {
+  const page = $('#page'), app = page._app, n = app.pivots.length;
+  page._i = i;
+  const heads = $('.pivot-heads', page), body = $('.pivot-body', page);
+  heads.innerHTML = [...Array(n)].map((_, k) => (i + k) % n)
+    .map(k => `<button class="ph${k === i ? ' on' : ''}" data-i="${k}">${app.pivots[k].h}</button>`).join('');
+  body.innerHTML = app.pivots[i].render();
+  if (app.pivots[i].mount) app.pivots[i].mount(body);
+  if (dir) {
+    heads.animate([{ transform: `translateX(${dir * 50}px)`, opacity: .4 }, { transform: 'none', opacity: 1 }], { duration: dur(380), easing: EASE_OUT });
+    $$('.ts', body).forEach((el, k) => el.animate(
+      [{ transform: `translateX(${dir * 90}px)`, opacity: 0 }, { transform: 'none', opacity: 1 }],
+      { duration: dur(420), delay: dur(k * 30), easing: EASE_OUT, fill: 'backwards' }));
+  }
+}
+$('#page').addEventListener('click', e => {
+  const h = e.target.closest('.ph'); if (!h) return;
+  const i = +h.dataset.i; if (i !== $('#page')._i) showPivot(i, 1);
+});
+(() => { // свайп между вкладками pivot
+  let sx = null, sy = 0;
+  const page = $('#page');
+  page.addEventListener('pointerdown', e => { if (e.pointerType !== 'mouse') { sx = e.clientX; sy = e.clientY; } });
+  page.addEventListener('pointerup', e => {
+    if (sx === null) return;
+    const dx = e.clientX - sx, dy = e.clientY - sy; sx = null;
+    const n = page._app ? page._app.pivots.length : 1;
+    if (n < 2 || Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+    const d = dx < 0 ? 1 : -1;
+    showPivot((page._i + d + n) % n, d);
+  });
+})();
+
+/* ================= Наклон при нажатии (tilt) ================= */
+let pressed = null;
+document.addEventListener('pointerdown', e => {
+  const el = e.target.closest('.tilt'); if (!el) return;
+  const r = el.getBoundingClientRect();
+  const x = (e.clientX - r.left) / r.width - .5, y = (e.clientY - r.top) / r.height - .5;
+  const k = Math.min(1, 220 / Math.max(r.width, r.height));
+  el.style.transform = `perspective(800px) rotateY(${x * 18 * k}deg) rotateX(${-y * 18 * k}deg) scale(.97)`;
+  pressed = el;
+});
+const release = () => { if (pressed) { pressed.style.transform = ''; pressed = null; } };
+['pointerup', 'pointercancel', 'dragstart'].forEach(ev => document.addEventListener(ev, release));
+document.addEventListener('pointerleave', release);
+
+/* ================= Анимация «турникет» ================= */
+function turnstile(els, mode, first) {
+  const shellL = $('#shell').getBoundingClientRect().left;
+  const vis = els.filter(el => { if (el.hidden) return false; const r = el.getBoundingClientRect(); return r.height && r.bottom > 0 && r.top < innerHeight; });
+  vis.sort((a, b) => { const ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect(); return (ra.top - rb.top) || (ra.left - rb.left); });
+  if (first) { const k = vis.indexOf(first); if (k > -1) { vis.splice(k, 1); vis.push(first); } }
+  const isIn = mode.startsWith('in'), fwd = mode.endsWith('fwd');
+  const ang = isIn ? (fwd ? -80 : 80) : (fwd ? 80 : -80);
+  const from = isIn ? { transform: `perspective(2000px) rotateY(${ang}deg)`, opacity: 0 } : { transform: 'perspective(2000px) rotateY(0deg)', opacity: 1 };
+  const to = isIn ? { transform: 'perspective(2000px) rotateY(0deg)', opacity: 1 } : { transform: `perspective(2000px) rotateY(${ang}deg)`, opacity: 0 };
+  const anims = vis.map((el, i) => {
+    el.style.transformOrigin = `${-(el.getBoundingClientRect().left - shellL)}px 50%`;
+    const delay = Math.min(i, 14) * 24 + (el === first ? 90 : 0);
+    return el.animate([from, to], { duration: dur(isIn ? 380 : 230), delay: dur(delay), easing: isIn ? EASE_OUT : EASE_IN, fill: 'both' });
+  });
+  return Promise.all(anims.map(a => a.finished)).then(() => anims, () => anims);
+}
+
+/* ================= Навигация ================= */
+const views = { start: $('#start'), apps: $('#apps'), app: $('#page') };
+const items = v => v.kind === 'start' ? $$('#start .tile, #start .more')
+  : v.kind === 'apps' ? $$('#apps .ts') : $$('#page .ts');
+function parse() {
+  const h = location.hash;
+  if (h === '#/apps') return { kind: 'apps' };
+  const m = h.match(/^#\/app\/(\w+)/);
+  if (m && APPS[m[1]]) return { kind: 'app', id: m[1] };
+  return { kind: 'start' };
+}
+let cur = null, lastTile = null, focusSearch = false;
+const scrolls = { start: 0, apps: 0 };
+const hist = [];
+const hideAll = () => Object.values(views).forEach(v => v.hidden = true);
+
+function afterShow() {
+  if (focusSearch && cur.kind === 'apps') { focusSearch = false; $('#search').focus(); }
+}
+async function go(v) {
+  const old = cur;
+  if (old && old.kind === v.kind && old.id === v.id) return;
+  const key = v.kind + (v.id || '');
+  if (hist.length > 1 && hist[hist.length - 2] === key) hist.pop(); else hist.push(key);
+  cur = v;
+  if (!old) { hideAll(); if (v.kind === 'app') buildPage(v.id); views[v.kind].hidden = false; return; }
+  if (old.kind !== 'app') scrolls[old.kind] = scrollY;
+  $('#jump').hidden = true;
+
+  if (old.kind !== 'app' && v.kind !== 'app') {           // пуск ⇄ список: панорамный сдвиг
+    const dir = v.kind === 'apps' ? 1 : -1;
+    const a = views[old.kind].animate([{ transform: 'none', opacity: 1 }, { transform: `translateX(${-70 * dir}px)`, opacity: 0 }],
+      { duration: dur(170), easing: EASE_IN, fill: 'forwards' });
+    await a.finished; hideAll(); a.cancel();
+    views[v.kind].hidden = false; scrollTo(0, scrolls[v.kind]);
+    await views[v.kind].animate([{ transform: `translateX(${70 * dir}px)`, opacity: 0 }, { transform: 'none', opacity: 1 }],
+      { duration: dur(420), easing: EASE_OUT }).finished;
+    afterShow(); return;
+  }
+  const fwd = v.kind === 'app';                             // турникет вперёд / назад
+  const outs = await turnstile(items(old), fwd ? 'out-fwd' : 'out-back', fwd ? lastTile : null);
+  hideAll(); outs.forEach(a => a.cancel());
+  if (v.kind === 'app') buildPage(v.id);
+  views[v.kind].hidden = false;
+  scrollTo(0, v.kind === 'app' ? 0 : scrolls[v.kind]);
+  const ins = await turnstile(items(v), fwd ? 'in-fwd' : 'in-back');
+  ins.forEach(a => a.cancel());
+  lastTile = null; afterShow();
+}
+let queue = Promise.resolve();
+const navigate = () => { queue = queue.then(() => go(parse())).catch(() => {}); };
+addEventListener('hashchange', navigate);
+document.addEventListener('click', e => { const t = e.target.closest('#start .tile'); if (t) lastTile = t; }, true);
+if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+
+function back() {
+  if (!cur || cur.kind === 'start') return;
+  if (hist.length > 1) history.back(); else location.replace('#/');
+}
+$('#bBack').innerHTML = svg('back');
+$('#bHome').innerHTML = svg('grid');
+$('#bSearch').innerHTML = svg('search');
+$('#bBack').onclick = back;
+$('#bHome').onclick = () => { if (cur.kind !== 'start') location.hash = '#/'; };
+$('#bSearch').onclick = () => { focusSearch = true; if (cur.kind !== 'apps') location.hash = '#/apps'; else afterShow(); };
+document.addEventListener('keydown', e => {
+  if (!$('#lock').hidden) { unlock(0); return; }
+  const typing = e.target.matches('input, textarea');
+  if (e.key === 'Escape' || (e.key === 'Backspace' && !typing)) {
+    if (!$('#jump').hidden) { $('#jump').hidden = true; return; }
+    e.preventDefault(); back();
+  }
+});
+
+/* ================= Экран блокировки ================= */
+const lock = $('#lock');
+function intro() { turnstile(items(cur), 'in-fwd').then(a => a.forEach(x => x.cancel())); }
+function unlock(fromY) {
+  if (lock.hidden || lock.dataset.gone) return;
+  lock.dataset.gone = 1;
+  lock.style.transform = '';
+  lock.animate([{ transform: `translateY(${fromY || 0}px)` }, { transform: 'translateY(-100%)' }],
+    { duration: dur(420), easing: 'cubic-bezier(.4,0,.6,1)', fill: 'forwards' })
+    .finished.then(() => { lock.hidden = true; intro(); });
+}
+(() => {
+  let y0 = null, dy = 0;
+  lock.addEventListener('pointerdown', e => { y0 = e.clientY; dy = 0; lock.setPointerCapture(e.pointerId); lock.style.transition = 'none'; });
+  lock.addEventListener('pointermove', e => { if (y0 === null) return; dy = Math.min(0, e.clientY - y0); lock.style.transform = `translateY(${dy}px)`; });
+  const end = () => {
+    if (y0 === null) return; y0 = null;
+    if (dy < -60 || Math.abs(dy) < 6) unlock(dy);
+    else { lock.style.transition = 'transform .3s cubic-bezier(.1,.9,.2,1)'; lock.style.transform = ''; }
+  };
+  lock.addEventListener('pointerup', end);
+  lock.addEventListener('pointercancel', end);
+})();
+
+/* ================= Старт ================= */
+go(parse());
+if (store.get('lock', CONFIG.lockScreen) && cur.kind === 'start') lock.hidden = false;
+else intro();
+})();
+</script>
+</body>
+</html>
