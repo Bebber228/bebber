@@ -27,7 +27,8 @@
 /* обои: одна картинка на всю сетку плиток; у каждой плитки свой кусок (позиция считается в JS).
    Переворачивающаяся плитка поворачивается вместе со своим куском; у плиток, где что-то выезжает
    внутри (часы, «обо мне»), обои стоят на месте — двигается только содержимое */
-html.has-wall .face:not(.pic),html.has-wall .tile.peek .tile-body{background-image:var(--wall);background-repeat:no-repeat;
+html.has-wall .face:not(.pic),html.has-wall .tile.peek .tile-body{background-image:linear-gradient(rgba(0,0,0,var(--wall-dim,.15)),rgba(0,0,0,var(--wall-dim,.15))),var(--wall);   /* обои на 15 % темнее: --wall-dim */
+  background-repeat:no-repeat;
   background-size:var(--wsz,cover);background-position:var(--wx,0) var(--wy,0)}
 @media (max-width:640px){:root{--cols:4;--gap:5px;--w:calc(100vw - 20px)}}
 
