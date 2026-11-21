@@ -242,9 +242,9 @@ html.light .wp-logo{filter:invert(1)}
 .sw.drag b,.sw.drag i{transition:none}
 .t-s{font-size:20px;font-weight:300}
 
-/* ===== Сообщение (MessageDialog WP 8.1, по видео): панель под строкой состояния, остальное затемнено ===== */
-#msg{position:fixed;left:0;right:0;top:28px;bottom:0;z-index:120;background:#000000a1;touch-action:none}
-#msg .mb{background:#181a18;padding:26px 0 24px;transform-origin:50% 50%;backface-visibility:hidden}
+/* ===== Сообщение (MessageDialog WP 8.1, по видео): панель от самого верха, остальное затемнено ===== */
+#msg{position:fixed;inset:0;z-index:120;background:#000000a1;touch-action:none}
+#msg .mb{background:#181a18;padding:54px 0 24px;transform-origin:50% 50%;backface-visibility:hidden}   /* до самого верха, поверх строки состояния */
 #msg .mb-in{width:var(--w);margin:0 auto;padding:0 2px;max-width:680px}
 #msg .mb-t{font-size:25px;font-weight:600;line-height:1.2}
 #msg .mb-x{font-size:20px;font-weight:400;line-height:1.35;margin:20px 0 30px}
@@ -833,6 +833,14 @@ function closeMsg() {
     .finished.then(() => { el.hidden = true; el.getAnimations({ subtree: true }).forEach(a => a.cancel()); msgClosing = false; });
 }
 $('#msg .mb-b').addEventListener('click', e => { e.currentTarget.classList.add('press'); setTimeout(closeMsg, dur(60)); });
+// сообщение ждёт, пока откроется рабочий стол (после экрана блокировки и появления плиток)
+let msgPending = null;
+function queueMsg(...a) { msgPending = a; flushMsg(); }
+const msgReady = () => lock.hidden && cur && cur.kind === 'start' && !PAN.on;
+function flushMsg() {
+  if (!msgPending || !msgReady()) return;
+  setTimeout(() => { if (msgPending && msgReady()) { const a = msgPending; msgPending = null; showMsg(...a); } }, dur(250));
+}
 // предупреждение при 20 %, затем при 10 % и 5 %; на зарядке — сбрасывается
 function lowBattery(pct, charging) {
   let shown = []; try { shown = JSON.parse(sessionStorage.getItem('wp_bat') || '[]'); } catch (e) {}
@@ -841,7 +849,7 @@ function lowBattery(pct, charging) {
   const lvl = [20, 10, 5].filter(x => pct <= x).pop();
   if (!lvl || shown.includes(lvl)) return;
   shown.push(lvl); save();
-  showMsg(t('batT'), t('batX'), t('ok'));
+  queueMsg(t('batT'), t('batX'), t('ok'));
 }
 
 /* ================= Батарея (Battery Status API) ================= */
@@ -1303,6 +1311,7 @@ async function go(v) {
   scrollTo(0, v.kind === 'app' ? 0 : scrolls[v.kind]);
   const ins = await turnstile(items(v), v.kind === 'start' ? 'tiles' : fwd ? 'in-fwd' : 'in-back');
   ins.forEach(a => a.cancel());
+  if (v.kind === 'start') flushMsg();
   lastTap = null;
 }
 let queue = Promise.resolve();
@@ -1367,6 +1376,7 @@ function panEnd(to) {
   document.documentElement.style.overflow = '';
   scrollTo(0, scrolls[to]);
   PAN.on = false;
+  if (to === 'start') flushMsg();
 }
 async function panAnimate(from, to) {
   panBegin(from);
@@ -1437,7 +1447,7 @@ function setLang(k) { langPref = k; store.set('lang', k); applyLang(); }
 /* ================= Экран блокировки ================= */
 const lock = $('#lock');
 lock.style.backgroundImage = `url('img/lock/${WALLPAPERS[Math.random() * WALLPAPERS.length | 0]}')`;
-function intro() { turnstile(items(cur), cur.kind === 'start' ? 'tiles' : 'in-fwd').then(a => a.forEach(x => x.cancel())); }
+function intro() { turnstile(items(cur), cur.kind === 'start' ? 'tiles' : 'in-fwd').then(a => { a.forEach(x => x.cancel()); flushMsg(); }); }
 /* Экран блокировки как в WP 8.1 (замерено покадрово по замедленной съёмке):
    • нажатие — экран чуть подпрыгивает (~4,4 % высоты), падает и ещё раз отскакивает (~1,9 %);
    • тянем вверх — экран идёт за пальцем; отпустили — летит вверх по инерции и замедляется;
