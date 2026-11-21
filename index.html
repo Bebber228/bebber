@@ -27,7 +27,11 @@
 
 *{box-sizing:border-box}
 [hidden]{display:none!important}
-html{background:#000;scrollbar-color:#333 #000}
+html{background:#000;scrollbar-width:none}
+html::-webkit-scrollbar{display:none}
+#sbar{position:fixed;right:3px;top:0;width:4px;background:#fff;opacity:0;z-index:55;pointer-events:none;transition:opacity .4s}
+#sbar.on{opacity:.45;transition:opacity .1s}
+body.locked #shell{visibility:hidden}
 body{margin:0;padding:44px 0 40px;background:#000;color:#fff;
   font-family:"WP","Segoe WP","Segoe UI","Open Sans",Tahoma,sans-serif;
   -webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent;overflow-x:hidden;
@@ -98,7 +102,6 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
 .face.soc{display:grid;align-items:stretch;justify-items:stretch;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr)}
 .sc{position:relative;overflow:hidden}
 .sc-in{position:absolute;inset:0;background:center/cover no-repeat}
-.sc-in.blank{background:#0000004d}
 .sc.big{position:absolute;width:calc(200% / 3);height:calc(200% / 3);z-index:1}
 .tile.social .label{text-shadow:0 0 6px #000c}
 /* стрелка «все приложения» */
@@ -207,6 +210,7 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
   <section id="page" hidden></section>
 </div>
 
+<div id="sbar"></div>
 <div id="jump" hidden><div class="jl"></div></div>
 <div id="viewer" hidden><img alt=""><div class="v-cnt"></div></div>
 
@@ -408,7 +412,7 @@ PROJECTS.forEach(x => {
 /* ================= Рабочий стол ================= */
 const TILES = () => [
   { size: 'w', type: 'clock', live: 'peek' },
-  { size: 'm', to: '#/app/about', label: t('about'), type: 'avatar' },
+  { size: 'm', to: '#/app/about', type: 'avatar' },
   { size: 'm', to: '#/app/contact', label: t('contacts'), type: 'social' },
   { size: 'w', to: '#/app/projects', label: t('projects'), icon: 'code', live: 'flip', feed: true },
   ...PROJECTS.map(x => ({ size: 'm', to: '#/app/' + x.id, label: x.name, img: x.icon, glyph: x.glyph, live: 'flip',
@@ -438,8 +442,9 @@ function tileHTML(tl) {
     inner = `<div class="tile-in"><div class="face front${pic}">${front}</div>${tl.live ? `<div class="face back">${back}</div>` : ''}</div>`;
   }
   const cls = `tile ${tl.size} ${tl.live || ''}${tl.type === 'avatar' ? ' ava' : ''}${tl.type === 'social' ? ' social' : ''}`;
-  return `<a class="${cls}" href="${tl.to}" draggable="false"${tl.feed ? ' data-feed="1"' : ''}${tl.type === 'avatar' ? ' data-stage="0"' : ''}>
-    <div class="tile-body tilt">${inner}</div></a>`;
+  const tag = tl.to ? 'a' : 'div';
+  return `<${tag} class="${cls}"${tl.to ? ` href="${tl.to}"` : ''} draggable="false"${tl.feed ? ' data-feed="1"' : ''}${tl.type === 'avatar' ? ' data-stage="0"' : ''}>
+    <div class="tile-body tilt">${inner}</div></${tag}>`;
 }
 function renderTiles() { $('#tiles').innerHTML = TILES().map(tileHTML).join(''); tick(); socialInit(); }
 
@@ -473,23 +478,28 @@ setTimeout((function avaLoop() {
 }), 5000);
 
 /* ================= Плитка «контакты»: сетка 3×3 как в «Людях» WP 8.1 =================
-   Ячейки по одной прокручиваются сверху вниз: иконка соцсети или пустая затемнённая ячейка.
-   Иногда одна иконка разворачивается на 2×2, потом уезжает вниз. */
+   Ячейки по одной переворачиваются на месте (как плитка «проекты»): иконка соцсети или пустая
+   ячейка, затемнённая чёрным на 0, 15, 30 или 45 %. Иногда одна иконка разворачивается на 2×2. */
 const SOC = { cells: [], big: null, bigAge: 0 };
-const socHTML = c => c === 'blank' ? '<div class="sc-in blank"></div>'
+const SHADES = [0, 15, 30, 45];
+const isBlank = c => /^b\d+$/.test(c);
+const randBlank = () => 'b' + SHADES[Math.random() * SHADES.length | 0];
+const socHTML = c => isBlank(c) ? `<div class="sc-in" style="background:rgba(0,0,0,${c.slice(1) / 100})"></div>`
   : `<div class="sc-in" style="background-image:url('${socIcon(c)}')"></div>`;
-function socRoll(el, c, ms = 700) {
+function socRoll(el, c) {                          // переворот вокруг горизонтальной оси
   const old = el.firstElementChild;
-  el.insertAdjacentHTML('afterbegin', c ? socHTML(c) : '<div class="sc-in"></div>');
-  const nu = el.firstElementChild;
-  const opt = { duration: dur(ms), easing: 'cubic-bezier(.45,0,.2,1)' };
-  nu.animate([{ transform: 'translateY(-100%)' }, { transform: 'none' }], opt);
-  if (!old) return Promise.resolve();
-  return old.animate([{ transform: 'none' }, { transform: 'translateY(100%)' }], opt).finished.then(() => el.removeChild(old));
+  const out = old ? old.animate([{ transform: 'perspective(500px) rotateX(0)' }, { transform: 'perspective(500px) rotateX(90deg)' }],
+    { duration: dur(230), easing: 'cubic-bezier(.6,0,1,1)', fill: 'forwards' }).finished : Promise.resolve();
+  return out.then(() => {
+    el.innerHTML = c ? socHTML(c) : '';
+    const nu = el.firstElementChild; if (!nu) return;
+    return nu.animate([{ transform: 'perspective(500px) rotateX(-90deg)' }, { transform: 'none' }],
+      { duration: dur(420), easing: 'cubic-bezier(0,0,.2,1)' }).finished;
+  });
 }
 function socialInit() {
   const tile = $('#start .tile.social'); if (!tile) return;
-  const pool = SOCIAL.map(x => x.id).concat(Array(Math.max(0, 9 - SOCIAL.length)).fill('blank'));
+  const pool = SOCIAL.map(x => x.id).concat(Array(Math.max(0, 9 - SOCIAL.length)).fill(0).map(randBlank));
   for (let i = pool.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [pool[i], pool[j]] = [pool[j], pool[i]]; }
   SOC.cells = pool.slice(0, 9); SOC.big = null;
   $$('.sc:not(.big)', tile).forEach((el, i) => el.innerHTML = socHTML(SOC.cells[i]));
@@ -503,17 +513,19 @@ function socialStep() {
     const dr = Math.floor(i / 3) - SOC.big.r, dc = (i % 3) - SOC.big.c;
     return dr >= 0 && dr <= 1 && dc >= 0 && dc <= 1;
   };
-  if (SOC.big) {                                   // большая иконка подержалась — уезжает вниз
+  if (SOC.big) {                                   // большая иконка подержалась — переворачивается обратно
     if (++SOC.bigAge < 3) return socialCell(cells, covered);
     socRoll(big, null).then(() => { big.hidden = true; big.innerHTML = ''; });
     SOC.big = null; return;
   }
   if (Math.random() < .16) {                       // иконка на 2×2 в случайном углу
     const r = Math.random() * 2 | 0, c = Math.random() * 2 | 0;
-    const id = ids[Math.random() * ids.length | 0];
-    SOC.big = { r, c, id }; SOC.bigAge = 0;
+    SOC.big = { r, c }; SOC.bigAge = 0;
+    const seen = new Set(SOC.cells.filter((_, k) => !covered(k)));   // не дублировать видимые иконки
+    const pick = ids.filter(x => !seen.has(x)), id = (pick.length ? pick : ids)[Math.random() * (pick.length || ids.length) | 0];
+    SOC.big.id = id;
     Object.assign(big.style, { top: (r * 100 / 3) + '%', left: (c * 100 / 3) + '%' });
-    big.innerHTML = ''; big.hidden = false; socRoll(big, id, 800);
+    big.innerHTML = ''; big.hidden = false; socRoll(big, id);
     return;
   }
   socialCell(cells, covered);
@@ -521,11 +533,11 @@ function socialStep() {
 function socialCell(cells, covered) {
   const free = cells.map((_, i) => i).filter(i => !covered(i));
   const i = free[Math.random() * free.length | 0], curC = SOC.cells[i];
-  const shown = new Set(SOC.cells.filter((c, k) => k !== i));
+  const shown = new Set(SOC.cells.filter((c, k) => k !== i && !covered(k)).concat(SOC.big ? [SOC.big.id] : []));
   const icons = SOCIAL.map(x => x.id).filter(id => id !== curC && !shown.has(id));
   let next;
-  if (curC === 'blank') next = icons.length ? icons[Math.random() * icons.length | 0] : SOCIAL[Math.random() * SOCIAL.length | 0].id;
-  else next = Math.random() < .45 || !icons.length ? 'blank' : icons[Math.random() * icons.length | 0];
+  if (isBlank(curC)) next = Math.random() < .25 || !icons.length ? randBlank() : icons[Math.random() * icons.length | 0];
+  else next = Math.random() < .45 || !icons.length ? randBlank() : icons[Math.random() * icons.length | 0];
   if (next === curC) return;
   SOC.cells[i] = next; socRoll(cells[i], next);
 }
@@ -846,7 +858,7 @@ function back() {
 /* ================= Панорама: пуск ⇄ все приложения (как в WP 8.1) =================
    Оба экрана стоят рядом; экран перелистывается целиком до конца и плавно тормозит. */
 const PAN = { on: false, p: 0, done: false, raf: 0 };
-const easeOutQuart = x => 1 - Math.pow(1 - x, 4);
+const easeOutExpo = x => x >= 1 ? 1 : (1 - Math.pow(2, -10 * x)) / (1 - Math.pow(2, -10));
 function panSet(p) {
   PAN.p = p;
   views.start.style.transform = `translate3d(${p}px,0,0)`;
@@ -872,13 +884,14 @@ function panRun(target, v = 0) {
   cancelAnimationFrame(PAN.raf);
   const p0 = PAN.p, dist = target - p0;
   if (!dist || REDUCED) { panSet(target); return Promise.resolve(); }
-  let T = Math.abs(v) > .05 ? 4 * Math.abs(dist) / Math.abs(v) : 650;
-  T = Math.max(220, Math.min(T, 750));
+  // у экспоненты начальная скорость ≈ 6.9·dist/T — подбираем T под скорость броска
+  let T = Math.abs(v) > .05 ? 6.9 * Math.abs(dist) / Math.abs(v) : 700;
+  T = Math.max(380, Math.min(T, 800));
   return new Promise(res => {
     const t0 = performance.now();
     const step = now => {
       const k = Math.min(1, (now - t0) / T);
-      panSet(p0 + dist * easeOutQuart(k));
+      panSet(p0 + dist * easeOutExpo(k));
       if (k < 1) PAN.raf = requestAnimationFrame(step); else res();
     };
     PAN.raf = requestAnimationFrame(step);
@@ -932,6 +945,20 @@ document.addEventListener('keydown', e => {
   }
 });
 
+/* ================= Полоса прокрутки (тонкая, поверх страницы, как в WP) ================= */
+(() => {
+  const bar = $('#sbar'); let hideT = 0;
+  const upd = show => {
+    const H = innerHeight, D = document.documentElement.scrollHeight;
+    if (D <= H + 2 || PAN.on) { bar.classList.remove('on'); return; }
+    const h = Math.max(30, H * H / D), top = scrollY / (D - H) * (H - h);
+    bar.style.height = h + 'px'; bar.style.transform = `translateY(${top}px)`;
+    if (show) { bar.classList.add('on'); clearTimeout(hideT); hideT = setTimeout(() => bar.classList.remove('on'), 700); }
+  };
+  addEventListener('scroll', () => upd(true), { passive: true });
+  addEventListener('resize', () => upd(false));
+})();
+
 /* ================= Язык ================= */
 function applyLang() {
   document.documentElement.lang = L();
@@ -954,7 +981,7 @@ function unlock(fromY) {
   lock.style.transform = '';
   lock.animate([{ transform: `translateY(${fromY || 0}px)` }, { transform: 'translateY(-100%)' }],
     { duration: dur(420), easing: 'cubic-bezier(.4,0,.6,1)', fill: 'forwards' })
-    .finished.then(() => { lock.hidden = true; intro(); });
+    .finished.then(() => { lock.hidden = true; intro(); document.body.classList.remove('locked'); });
 }
 (() => {
   let y0 = null, dy = 0;
@@ -972,7 +999,7 @@ function unlock(fromY) {
 /* ================= Старт ================= */
 applyLang();
 go(parse());
-if (store.get('lock', CONFIG.lockScreen) && cur.kind === 'start') lock.hidden = false;
+if (store.get('lock', CONFIG.lockScreen) && cur.kind === 'start') { lock.hidden = false; document.body.classList.add('locked'); }
 else intro();
 })();
 </script>
