@@ -174,15 +174,13 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
 
 /* ===== Экран блокировки ===== */
 #lock{position:fixed;inset:0;z-index:100;background:#000 center/cover no-repeat;
-  display:flex;flex-direction:column;justify-content:flex-end;align-items:flex-start;text-align:left;
-  padding:0 24px 96px;
   touch-action:none;cursor:grab}
+.l-clock{position:absolute;left:24px;bottom:44px;text-align:left}
 .l-time{font-size:clamp(90px,14vw,150px);font-weight:300;line-height:1;letter-spacing:-3px}
 .l-date{font-size:clamp(30px,4vw,44px);font-weight:300;line-height:1.15;margin-top:6px;white-space:pre-line}
 #lock::before{content:"";position:absolute;inset:0;pointer-events:none;
-  background:linear-gradient(to bottom,#0000 55%,rgba(0,0,0,var(--vignette,.05)))}   /* виньетка: --vignette */
-.l-time,.l-date{position:relative}
-.l-hint{position:absolute;bottom:26px;left:0;right:0;text-align:center;font-size:13px;opacity:.55}
+  background:linear-gradient(to bottom,#0000 55%,rgba(0,0,0,var(--vignette,.15)))}   /* виньетка: --vignette */
+.l-hint{position:absolute;bottom:14px;left:0;right:0;text-align:center;font-size:13px;opacity:.55}
 
 @media (prefers-reduced-motion:reduce){.tile-in,.tile-body,.ava-slide{transition:none!important}}
 </style>
@@ -190,8 +188,7 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
 <body>
 
 <div id="lock" hidden>
-  <div class="l-time"></div>
-  <div class="l-date"></div>
+  <div class="l-clock"><div class="l-time"></div><div class="l-date"></div></div>
   <div class="l-hint"></div>
 </div>
 
@@ -827,43 +824,46 @@ document.addEventListener('pointerleave', release);
    Все элементы поворачиваются вокруг ОДНОЙ оси — левого края экрана — с общей точкой
    перспективы, по очереди сверху вниз («перо»). Вперёд: старая страница уходит вглубь,
    новая выворачивается навстречу. Назад — в обратную сторону. Нажатая плитка уходит последней. */
-// Порядок и скорость сняты покадрово с видео WP 8.1:
-//  out-fwd  (открываем приложение) — элементы уходят СНИЗУ ВВЕРХ, нажатый уходит последним после паузы;
-//  in-fwd   (страница приложения)  — появляется почти целиком сразу, быстро;
-//  out-back (выходим назад)        — уходит СВЕРХУ ВНИЗ, быстро;
-//  in-back  (возвращаемся в список)— появляется СНИЗУ ВВЕРХ, проявляясь из темноты.
+/* Турникет — всё снято покадрово с видео Lumia (30 к/с). Ось вращения — левый край экрана,
+   точка перспективы — центр экрана по высоте. «Вглубь» = правый край уходит от зрителя (элемент
+   уменьшается), «на зрителя» = правый край идёт к нам (элемент растёт и разъезжается от центра).
+   out-fwd  открываем приложение: элементы по одному СНИЗУ ВВЕРХ разворачиваются НА ЗРИТЕЛЯ и пропадают,
+            нажатый уходит последним, отдельно;
+   in-fwd   страница приложения: элементы СВЕРХУ ВНИЗ быстро доворачиваются ИЗ ГЛУБИНЫ на место;
+   out-back выходим назад: элементы СВЕРХУ ВНИЗ уходят ВГЛУБЬ;
+   in-back  возвращаемся в список: элементы СНИЗУ ВВЕРХ проявляются ровно, без поворота;
+   tiles    рабочий стол: плитки ряд за рядом СНИЗУ ВВЕРХ вылетают ИЗ ГЛУБИНЫ и встают на место. */
 const TURN = {
-  'out-fwd':  { up: true,  step: 26, dur: 140, ang: 75,  extra: 100, lift: true },
-  'in-fwd':   { up: false, step: 10, dur: 260, ang: -60 },
-  'out-back': { up: false, step: 28, dur: 150, ang: -70 },
-  'in-back':  { up: true,  step: 14, dur: 200, flat: true }
+  'out-fwd':  { up: true,  step: 30, dur: 130, from: 0,  to: -50, cut: .7, ease: 'cubic-bezier(.5,0,1,1)', extra: 90 },
+  'in-fwd':   { up: false, step: 30, dur: 170, from: 45, to: 0,   ease: 'cubic-bezier(0,0,.2,1)' },
+  'out-back': { up: false, step: 30, dur: 130, from: 0,  to: 50,  cut: .7, ease: 'cubic-bezier(.5,0,1,1)' },
+  'in-back':  { up: true,  step: 30, dur: 160, flat: true, ease: 'linear' },
+  'tiles':    { up: true,  step: 32, dur: 360, from: 70, to: 0,   ease: 'cubic-bezier(.1,.9,.2,1)' }
 };
 function turnstile(els, mode, first) {
-  const H = innerHeight, P = Math.max(1100, innerWidth * 1.3), c = TURN[mode];
+  const H = innerHeight, P = Math.max(900, innerWidth * 1.1), c = TURN[mode];
   const vis = els.filter(el => { if (el.hidden || !el.getClientRects().length) return false; const r = el.getBoundingClientRect(); return r.bottom >= 0 && r.top < H; });
   const rects = new Map(vis.map(el => [el, el.getBoundingClientRect()]));
   vis.sort((a, b) => { const ra = rects.get(a), rb = rects.get(b); return (Math.round(ra.top / 8) - Math.round(rb.top / 8)) || (ra.left - rb.left); });
-  const isIn = mode.startsWith('in');
   const rot = a => `perspective(${P}px) rotateY(${a}deg)`;
-  const kf = c.flat ? [{ transform: 'none', opacity: 0 }, { transform: 'none', opacity: 1 }]   // проявляются ровно, без поворота
-    : isIn ? [{ transform: rot(c.ang), opacity: 0 }, { opacity: 1, offset: .15 }, { transform: rot(0), opacity: 1 }]
-    : c.lift ? [{ transform: 'none', opacity: 1 }, { opacity: 1, offset: .65 },               // уходят влево-вверх
-        { transform: `translate(-40px,-56px) ${rot(c.ang)}`, opacity: 0 }]
-    : [{ transform: rot(0), opacity: 1 }, { opacity: 1, offset: .8 }, { transform: rot(c.ang), opacity: 0 }];
-  // номер строки (элементы одной строки идут вместе)
+  const kf = c.flat ? [{ opacity: 0 }, { opacity: 1 }]
+    : c.cut ? [{ transform: rot(c.from), opacity: 1 }, { opacity: 1, offset: c.cut }, { transform: rot(c.to), opacity: 0 }]
+    : [{ transform: rot(c.from), opacity: 0 }, { opacity: 1, offset: .3 }, { transform: rot(c.to), opacity: 1 }];
+  // номер ряда: элементы одного ряда идут вместе
   const rows = new Map(); let row = -1, lastTop = null;
   vis.forEach(el => { if (el === first) return; const r = rects.get(el);
     if (lastTop === null || Math.abs(r.top - lastTop) > 8) { row++; lastTop = r.top; } rows.set(el, row); });
-  const maxRow = row, lastDelay = Math.min(maxRow, 12) * c.step;
+  const maxRow = row;
   const anims = vis.map(el => {
     const r = rects.get(el);
-    el.style.transformOrigin = c.lift ? `${-r.left}px 50%` : `${-r.left}px ${H / 2 - r.top}px`;   // ось — левый край экрана
+    el.style.transformOrigin = `${-r.left}px ${H / 2 - r.top}px`;
     const k = rows.has(el) ? (c.up ? maxRow - rows.get(el) : rows.get(el)) : 0;
-    const delay = el === first && !isIn ? lastDelay + c.extra : Math.min(k, 12) * c.step;
-    return el.animate(kf, { duration: dur(c.dur), delay: dur(delay), easing: isIn ? EASE_OUT : EASE_IN, fill: 'both' });
+    const delay = el === first && c.extra ? Math.min(maxRow, 14) * c.step + c.extra : Math.min(k, 14) * c.step;
+    return el.animate(kf, { duration: dur(c.dur), delay: dur(delay), easing: c.ease, fill: 'both' });
   });
   return Promise.all(anims.map(a => a.finished)).then(() => anims, () => anims);
 }
+const pause = ms => new Promise(r => setTimeout(r, dur(ms)));
 
 /* ================= Навигация ================= */
 const views = { start: $('#start'), apps: $('#apps'), app: $('#page') };
@@ -906,7 +906,8 @@ async function go(v) {
   if (v.kind === 'app') buildPage(v.id);
   views[v.kind].hidden = false;
   scrollTo(0, v.kind === 'app' ? 0 : scrolls[v.kind]);
-  const ins = await turnstile(items(v), fwd ? 'in-fwd' : 'in-back');
+  await pause(60);
+  const ins = await turnstile(items(v), v.kind === 'start' ? 'tiles' : fwd ? 'in-fwd' : 'in-back');
   ins.forEach(a => a.cancel());
   lastTap = null;
 }
@@ -1040,7 +1041,7 @@ function setLang(k) { langPref = k; store.set('lang', k); applyLang(); }
 /* ================= Экран блокировки ================= */
 const lock = $('#lock');
 lock.style.backgroundImage = `url('img/lock/${WALLPAPERS[Math.random() * WALLPAPERS.length | 0]}')`;
-function intro() { turnstile(items(cur), 'in-fwd').then(a => a.forEach(x => x.cancel())); }
+function intro() { turnstile(items(cur), cur.kind === 'start' ? 'tiles' : 'in-fwd').then(a => a.forEach(x => x.cancel())); }
 function unlock(fromY) {
   if (lock.hidden || lock.dataset.gone) return;
   lock.dataset.gone = 1;
