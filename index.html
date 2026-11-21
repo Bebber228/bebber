@@ -94,10 +94,17 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
 .tile.ava .label{text-shadow:0 0 6px #000a}
 .tile.ava[data-stage="1"] .ava-slide{transform:translateY(25%)}
 .tile.ava[data-stage="2"] .ava-slide{transform:translateY(50%)}
+/* плитка «контакты»: сетка соцсетей */
+.face.soc{display:grid;align-items:stretch;justify-items:stretch;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr)}
+.sc{position:relative;overflow:hidden}
+.sc-in{position:absolute;inset:0;background:center/cover no-repeat}
+.sc-in.blank{background:#0000004d}
+.sc.big{position:absolute;width:calc(200% / 3);height:calc(200% / 3);z-index:1}
+.tile.social .label{text-shadow:0 0 6px #000c}
 /* стрелка «все приложения» */
 .more{display:flex;justify-content:flex-end;margin:24px 0 8px}
-.more span{width:44px;height:44px;border:2px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center;overflow:hidden}
-.more img{width:100%;height:100%;display:block;transform:scale(1.25)}
+.more span{display:block;width:46px;height:46px;border:3px solid #fff;border-radius:50%;
+  background:url("img/arrow_right.png") 50% 50%/124% no-repeat}
 
 /* ===== Список приложений ===== */
 .search{width:100%;height:42px;border:2px solid transparent;background:#ffffffcc;color:#000;font:inherit;
@@ -189,7 +196,7 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
 <div id="shell">
   <section id="start" hidden>
     <div class="grid" id="tiles"></div>
-    <a class="more" href="#/apps" draggable="false"><span class="tilt"><img src="img/arrow_right.png" alt="" draggable="false"></span></a>
+    <a class="more" href="#/apps" draggable="false"><span class="tilt"></span></a>
   </section>
 
   <section id="apps" hidden>
@@ -213,10 +220,18 @@ const CONFIG = {
   avatar: 'img/avatar.jpg',
   accent: '#1BA1E2',          // цвет по умолчанию
   lockScreen: true,           // показывать экран блокировки при входе
-  github: 'https://github.com/Bebber228',
-  email: '',                  // например 'bebber@mail.ru' — пусто = не показывать
-  telegram: ''                // например 'https://t.me/bebber' — пусто = не показывать
+  email: ''                   // например 'bebber@mail.ru' — пусто = не показывать
 };
+/* Соцсети: иконка — img/social/<id>.png. Крутятся на плитке «контакты» и перечислены на её странице */
+const SOCIAL = [
+  { id: 'reddit',   name: 'Reddit',   url: 'https://www.reddit.com/user/IVANOV2004/' },
+  { id: 'github',   name: 'GitHub',   url: 'https://github.com/Bebber228' },
+  { id: 'x',        name: 'X',        url: 'https://x.com/IVANOV228007' },
+  { id: 'telegram', name: 'Telegram', url: 'https://t.me/bebber007' },
+  { id: 'tumblr',   name: 'Tumblr',   url: 'https://tumblr.com/ivanov23' },
+  { id: 'openvk',   name: 'OpenVK',   url: 'https://openvk.org/bebber' }
+];
+const socIcon = id => `img/social/${id}.png`;
 /* обои экрана блокировки (img/lock) — при каждом открытии сайта выбираются случайно */
 const WALLPAPERS = [
   'BabcockSP.jpg', 'ChattoogaRiver.jpg', 'DiwaliLamps.jpg', 'DolbadarnWales.jpg',
@@ -354,7 +369,7 @@ const APPS = {
   ]},
   contact: { title: () => t('contacts'), icon: 'mail', pivots: [
     { h: () => t('contacts'), render: () => (CONFIG.email ? li(t('mail'), CONFIG.email, 'mailto:' + CONFIG.email) : '') +
-      li('github', short(CONFIG.github), CONFIG.github) + (CONFIG.telegram ? li('telegram', short(CONFIG.telegram), CONFIG.telegram) : '') }
+      SOCIAL.map(x => link(x.url, `<span class="app-ico"><img src="${socIcon(x.id)}" alt="" draggable="false"></span><span><span class="li-t">${x.name}</span><span class="li-s">${short(x.url).replace(/\/$/, '')}</span></span>`, 'li pli ts tilt')).join('') }
   ]},
   settings: { title: () => t('settings'), img: 'img/icons/settings.png', glyph: true, pivots: [
     { h: () => t('theme'), render: () =>
@@ -394,8 +409,7 @@ PROJECTS.forEach(x => {
 const TILES = () => [
   { size: 'w', type: 'clock', live: 'peek' },
   { size: 'm', to: '#/app/about', label: t('about'), type: 'avatar' },
-  { size: 'm', to: '#/app/contact', label: t('contacts'), icon: 'mail', live: 'peek',
-    back: `<div class="b-title">${t('writeMe')}</div><div class="b-text">${CONFIG.email || short(CONFIG.github)}</div>` },
+  { size: 'm', to: '#/app/contact', label: t('contacts'), type: 'social' },
   { size: 'w', to: '#/app/projects', label: t('projects'), icon: 'code', live: 'flip', feed: true },
   ...PROJECTS.map(x => ({ size: 'm', to: '#/app/' + x.id, label: x.name, img: x.icon, glyph: x.glyph, live: 'flip',
     back: `<div class="b-title">${x.name}</div><div class="b-text">${tr(x.sub)}</div>` })),
@@ -405,7 +419,9 @@ const TILES = () => [
 function tileHTML(tl) {
   const label = tl.label ? `<span class="label">${tl.label}</span>` : '';
   let inner;
-  if (tl.type === 'avatar') {
+  if (tl.type === 'social') {
+    inner = `<div class="tile-in"><div class="face front soc">${'<div class="sc"></div>'.repeat(9)}<div class="sc big" hidden></div>${label}</div></div>`;
+  } else if (tl.type === 'avatar') {
     inner = `<div class="tile-in"><div class="face front"><div class="ava-slide">
       <div class="ava-name"><div class="nick">${CONFIG.name}</div></div>
       <div class="ava-pic" style="background-image:url('${CONFIG.avatar}')">${label}</div></div></div></div>`;
@@ -421,11 +437,11 @@ function tileHTML(tl) {
     const pic = tl.img ? ` pic${tl.glyph ? ' glyph' : ''}" style="background-image:url('${tl.img}')` : '';
     inner = `<div class="tile-in"><div class="face front${pic}">${front}</div>${tl.live ? `<div class="face back">${back}</div>` : ''}</div>`;
   }
-  const cls = `tile ${tl.size} ${tl.live || ''}${tl.type === 'avatar' ? ' ava' : ''}`;
+  const cls = `tile ${tl.size} ${tl.live || ''}${tl.type === 'avatar' ? ' ava' : ''}${tl.type === 'social' ? ' social' : ''}`;
   return `<a class="${cls}" href="${tl.to}" draggable="false"${tl.feed ? ' data-feed="1"' : ''}${tl.type === 'avatar' ? ' data-stage="0"' : ''}>
     <div class="tile-body tilt">${inner}</div></a>`;
 }
-function renderTiles() { $('#tiles').innerHTML = TILES().map(tileHTML).join(''); tick(); }
+function renderTiles() { $('#tiles').innerHTML = TILES().map(tileHTML).join(''); tick(); socialInit(); }
 
 let feedIdx = 0;
 function flipTile(el) {
@@ -455,6 +471,68 @@ setTimeout((function avaLoop() {
   if (st && startActive()) st.dataset.stage = (stage + 1) % 3;
   setTimeout(avaLoop, [5000, 2600, 2600][st ? +st.dataset.stage : 0]);
 }), 5000);
+
+/* ================= Плитка «контакты»: сетка 3×3 как в «Людях» WP 8.1 =================
+   Ячейки по одной прокручиваются сверху вниз: иконка соцсети или пустая затемнённая ячейка.
+   Иногда одна иконка разворачивается на 2×2, потом уезжает вниз. */
+const SOC = { cells: [], big: null, bigAge: 0 };
+const socHTML = c => c === 'blank' ? '<div class="sc-in blank"></div>'
+  : `<div class="sc-in" style="background-image:url('${socIcon(c)}')"></div>`;
+function socRoll(el, c, ms = 700) {
+  const old = el.firstElementChild;
+  el.insertAdjacentHTML('afterbegin', c ? socHTML(c) : '<div class="sc-in"></div>');
+  const nu = el.firstElementChild;
+  const opt = { duration: dur(ms), easing: 'cubic-bezier(.45,0,.2,1)' };
+  nu.animate([{ transform: 'translateY(-100%)' }, { transform: 'none' }], opt);
+  if (!old) return Promise.resolve();
+  return old.animate([{ transform: 'none' }, { transform: 'translateY(100%)' }], opt).finished.then(() => el.removeChild(old));
+}
+function socialInit() {
+  const tile = $('#start .tile.social'); if (!tile) return;
+  const pool = SOCIAL.map(x => x.id).concat(Array(Math.max(0, 9 - SOCIAL.length)).fill('blank'));
+  for (let i = pool.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [pool[i], pool[j]] = [pool[j], pool[i]]; }
+  SOC.cells = pool.slice(0, 9); SOC.big = null;
+  $$('.sc:not(.big)', tile).forEach((el, i) => el.innerHTML = socHTML(SOC.cells[i]));
+}
+function socialStep() {
+  const tile = $('#start .tile.social'); if (!tile) return;
+  const cells = $$('.sc:not(.big)', tile), big = $('.sc.big', tile);
+  const ids = SOCIAL.map(x => x.id);
+  const covered = i => {
+    if (!SOC.big) return false;
+    const dr = Math.floor(i / 3) - SOC.big.r, dc = (i % 3) - SOC.big.c;
+    return dr >= 0 && dr <= 1 && dc >= 0 && dc <= 1;
+  };
+  if (SOC.big) {                                   // большая иконка подержалась — уезжает вниз
+    if (++SOC.bigAge < 3) return socialCell(cells, covered);
+    socRoll(big, null).then(() => { big.hidden = true; big.innerHTML = ''; });
+    SOC.big = null; return;
+  }
+  if (Math.random() < .16) {                       // иконка на 2×2 в случайном углу
+    const r = Math.random() * 2 | 0, c = Math.random() * 2 | 0;
+    const id = ids[Math.random() * ids.length | 0];
+    SOC.big = { r, c, id }; SOC.bigAge = 0;
+    Object.assign(big.style, { top: (r * 100 / 3) + '%', left: (c * 100 / 3) + '%' });
+    big.innerHTML = ''; big.hidden = false; socRoll(big, id, 800);
+    return;
+  }
+  socialCell(cells, covered);
+}
+function socialCell(cells, covered) {
+  const free = cells.map((_, i) => i).filter(i => !covered(i));
+  const i = free[Math.random() * free.length | 0], curC = SOC.cells[i];
+  const shown = new Set(SOC.cells.filter((c, k) => k !== i));
+  const icons = SOCIAL.map(x => x.id).filter(id => id !== curC && !shown.has(id));
+  let next;
+  if (curC === 'blank') next = icons.length ? icons[Math.random() * icons.length | 0] : SOCIAL[Math.random() * SOCIAL.length | 0].id;
+  else next = Math.random() < .45 || !icons.length ? 'blank' : icons[Math.random() * icons.length | 0];
+  if (next === curC) return;
+  SOC.cells[i] = next; socRoll(cells[i], next);
+}
+setTimeout(function socLoop() {
+  if (startActive()) socialStep();
+  setTimeout(socLoop, 1200 + Math.random() * 1600);
+}, 2500);
 
 /* ================= Часы ================= */
 function tick() {
