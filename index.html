@@ -135,6 +135,8 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
 .ph.on{color:#fff}
 .pivot-body{min-height:60vh;position:relative}
 .pv-ghost{position:absolute;left:0;top:0;right:0;pointer-events:none}
+/* все вкладки начинаются на одной высоте (отступ первого элемента не «проваливается» наружу) */
+.pivot-body>:first-child,.pv-ghost>:first-child{margin-top:0}
 .li{display:block;padding:8px 0 10px;width:max-content;max-width:100%}
 .li-t{font-size:28px;font-weight:300;line-height:1.15;display:block}
 .li-s{font-size:15px;color:var(--accent);margin-top:2px;display:block}
@@ -732,8 +734,9 @@ function showPivot(i, dir, o = {}) {
     { duration: dur(480), easing: 'cubic-bezier(.3,.6,.3,1)' });
   if (ghost) {
     body.appendChild(ghost);
-    ghost.animate([{ transform: `translateX(${bx}px)`, opacity: 1 }, { transform: `translateX(${bx - dir * W * .3}px)`, opacity: 0 }],
-      { duration: dur(170), easing: 'cubic-bezier(.5,0,1,1)', fill: 'forwards' }).finished.then(() => ghost.remove(), () => ghost.remove());
+    const gx = bx ? bx - dir * 20 : -dir * W * .15;
+    ghost.animate([{ transform: `translateX(${bx}px)`, opacity: 1 }, { transform: `translateX(${gx}px)`, opacity: 0 }],
+      { duration: dur(200), easing: 'cubic-bezier(.3,0,.7,1)', fill: 'forwards' }).finished.then(() => ghost.remove(), () => ghost.remove());
   }
   const from = dir * Math.min(W * .8, 620);
   $$(':scope > :not(.pv-ghost)', body).forEach(el => el.animate(
@@ -797,25 +800,28 @@ function hDrag(start, move, end) {
   hDrag(
     e => cur && cur.kind === 'app' && !busy && page._app && page.contains(e.target),
     (d, x) => {
-      if (page._app.pivots.length < 2) x *= .25;         // одна вкладка — пружинит
-      d.dx = x;
+      // содержимое идёт за пальцем всё туже и упирается примерно в половину ширины — дальше не уходит;
+      // заголовки сдвигаются вдвое меньше. Одна вкладка — только слегка пружинит.
+      const L = $('#shell').getBoundingClientRect().width * .5;
+      const ex = page._app.pivots.length < 2 ? x * .25 : L * Math.tanh(x / L);
+      d.raw = x; d.dx = ex;
       const [b, h] = parts();
-      b.style.transform = `translateX(${x}px)`;
-      h.style.transform = `translateX(${x * .6}px)`;
+      b.style.transform = `translateX(${ex}px)`;
+      h.style.transform = `translateX(${ex * .5}px)`;
     },
     async (d, x, v) => {
       const n = page._app.pivots.length, W = innerWidth, [b, h] = parts();
-      const dx = d.dx || 0;
-      const go = n > 1 && (Math.abs(dx) > W * .18 || (Math.abs(v) > .35 && Math.sign(v) === Math.sign(dx)));
+      const dx = d.dx || 0, raw = d.raw || 0;
+      const go = n > 1 && (Math.abs(raw) > W * .18 || (Math.abs(v) > .35 && Math.sign(v) === Math.sign(raw)));
       busy = true;
       b.style.transform = h.style.transform = '';
       if (go) {
         const dir = dx < 0 ? 1 : -1;
-        showPivot((page._i + dir + n) % n, dir, { headX: dx * .6, bodyX: dx });
+        showPivot((page._i + dir + n) % n, dir, { headX: dx * .5, bodyX: dx });
         await pause(320);
       } else {
         const opt = { duration: dur(320), easing: EASE_OUT };
-        h.animate([{ transform: `translateX(${dx * .6}px)` }, { transform: 'none' }], opt);
+        h.animate([{ transform: `translateX(${dx * .5}px)` }, { transform: 'none' }], opt);
         await b.animate([{ transform: `translateX(${dx}px)` }, { transform: 'none' }], opt).finished;
       }
       busy = false;
