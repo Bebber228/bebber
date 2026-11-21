@@ -413,4 +413,226 @@ if (navigator.getBattery) {
 }
 
 /* ================= Список приложений ================= */
-const APP_LIST = Object.entries(APPS).map(([id, a]) => ({ name: a.title, icon: a.icon, img:
+const APP_LIST = Object.entries(APPS).map(([id, a]) => ({ name: a.title, icon: a.icon, img: a.img, to: '#/app/' + id }))
+  .concat([{ name: 'github', icon: 'ext', href: CONFIG.github }])
+  .sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+const letterOf = n => n[0].toLowerCase();
+function renderAppList() {
+  let html = '', last = '';
+  APP_LIST.forEach(a => {
+    const L = letterOf(a.name);
+    if (L !== last) { html += `<button class="letter ts" data-l="${L}">${L}</button>`; last = L; }
+    const attrs = a.href ? `href="${a.href}" target="_blank" rel="noopener"` : `href="${a.to}"`;
+    html += `<a class="app-row ts tilt" data-n="${a.name.toLowerCase()}" draggable="false" ${attrs}><span class="app-ico">${ico(a)}</span><span>${a.name}</span></a>`;
+  });
+  $('#appList').innerHTML = html;
+}
+renderAppList();
+
+$('#search').addEventListener('input', e => {
+  const q = e.target.value.trim().toLowerCase();
+  $$('#appList .app-row').forEach(r => r.hidden = q && !r.dataset.n.includes(q));
+  $$('#appList .letter').forEach(l => l.hidden = !!q);
+});
+
+const ALPHA = [...new Set(APP_LIST.map(a => letterOf(a.name)).filter(l => /[a-z]/.test(l)))]
+  .concat([...'абвгдеёжзийклмнопрстуфхцчшщэюя']);
+$('#appList').addEventListener('click', e => {
+  if (!e.target.closest('.letter')) return;
+  const has = new Set(APP_LIST.map(a => letterOf(a.name)));
+  const jl = $('#jump .jl');
+  jl.innerHTML = ALPHA.map(l => `<button class="${has.has(l) ? 'has' : ''}" data-l="${l}">${l}</button>`).join('');
+  $('#jump').hidden = false;
+  jl.animate([{ transform: 'scale(1.15)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: dur(260), easing: EASE_OUT });
+});
+$('#jump').addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (b && !b.classList.contains('has')) return;
+  $('#jump').hidden = true;
+  if (b) { const t = $(`#appList .letter[data-l="${b.dataset.l}"]`); if (t) scrollTo(0, t.getBoundingClientRect().top + scrollY - 40); }
+});
+
+/* ================= Страница с pivot ================= */
+function buildPage(id) {
+  const app = APPS[id], page = $('#page');
+  page.innerHTML = `<div class="app-title ts">${CONFIG.name.toUpperCase()}</div><div class="pivot-heads ts"></div><div class="pivot-body"></div>`;
+  page._app = app;
+  showPivot(0, 0);
+}
+function showPivot(i, dir) {
+  const page = $('#page'), app = page._app, n = app.pivots.length;
+  page._i = i;
+  const heads = $('.pivot-heads', page), body = $('.pivot-body', page);
+  heads.innerHTML = [...Array(n)].map((_, k) => (i + k) % n)
+    .map(k => `<button class="ph${k === i ? ' on' : ''}" data-i="${k}">${app.pivots[k].h}</button>`).join('');
+  body.innerHTML = app.pivots[i].render();
+  if (app.pivots[i].mount) app.pivots[i].mount(body);
+  if (dir) {
+    heads.animate([{ transform: `translateX(${dir * 50}px)`, opacity: .4 }, { transform: 'none', opacity: 1 }], { duration: dur(380), easing: EASE_OUT });
+    $$('.ts', body).forEach((el, k) => el.animate(
+      [{ transform: `translateX(${dir * 90}px)`, opacity: 0 }, { transform: 'none', opacity: 1 }],
+      { duration: dur(420), delay: dur(k * 30), easing: EASE_OUT, fill: 'backwards' }));
+  }
+}
+$('#page').addEventListener('click', e => {
+  const h = e.target.closest('.ph'); if (!h) return;
+  const i = +h.dataset.i; if (i !== $('#page')._i) showPivot(i, 1);
+});
+(() => { // свайп между вкладками pivot
+  let sx = null, sy = 0;
+  const page = $('#page');
+  page.addEventListener('pointerdown', e => { if (e.pointerType !== 'mouse') { sx = e.clientX; sy = e.clientY; } });
+  page.addEventListener('pointerup', e => {
+    if (sx === null) return;
+    const dx = e.clientX - sx, dy = e.clientY - sy; sx = null;
+    const n = page._app ? page._app.pivots.length : 1;
+    if (n < 2 || Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+    const d = dx < 0 ? 1 : -1;
+    showPivot((page._i + d + n) % n, d);
+  });
+})();
+
+/* ================= Наклон при нажатии (tilt) ================= */
+let pressed = null;
+document.addEventListener('pointerdown', e => {
+  const el = e.target.closest('.tilt'); if (!el) return;
+  const r = el.getBoundingClientRect();
+  const x = (e.clientX - r.left) / r.width - .5, y = (e.clientY - r.top) / r.height - .5;
+  const k = Math.min(1, 220 / Math.max(r.width, r.height));
+  el.style.transform = `perspective(800px) rotateY(${x * 18 * k}deg) rotateX(${-y * 18 * k}deg) scale(.97)`;
+  pressed = el;
+});
+const release = () => { if (pressed) { pressed.style.transform = ''; pressed = null; } };
+['pointerup', 'pointercancel'].forEach(ev => document.addEventListener(ev, release));
+// запрет перетаскивания плиток, ссылок и картинок браузером
+document.addEventListener('dragstart', e => { e.preventDefault(); release(); });
+document.addEventListener('pointerleave', release);
+
+/* ================= Анимация «турникет» ================= */
+function turnstile(els, mode, first) {
+  const shellL = $('#shell').getBoundingClientRect().left;
+  const vis = els.filter(el => { if (el.hidden) return false; const r = el.getBoundingClientRect(); return r.height && r.bottom > 0 && r.top < innerHeight; });
+  vis.sort((a, b) => { const ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect(); return (ra.top - rb.top) || (ra.left - rb.left); });
+  if (first) { const k = vis.indexOf(first); if (k > -1) { vis.splice(k, 1); vis.push(first); } }
+  const isIn = mode.startsWith('in'), fwd = mode.endsWith('fwd');
+  const ang = isIn ? (fwd ? -80 : 80) : (fwd ? 80 : -80);
+  const from = isIn ? { transform: `perspective(2000px) rotateY(${ang}deg)`, opacity: 0 } : { transform: 'perspective(2000px) rotateY(0deg)', opacity: 1 };
+  const to = isIn ? { transform: 'perspective(2000px) rotateY(0deg)', opacity: 1 } : { transform: `perspective(2000px) rotateY(${ang}deg)`, opacity: 0 };
+  const anims = vis.map((el, i) => {
+    el.style.transformOrigin = `${-(el.getBoundingClientRect().left - shellL)}px 50%`;
+    const delay = Math.min(i, 14) * 24 + (el === first ? 90 : 0);
+    return el.animate([from, to], { duration: dur(isIn ? 380 : 230), delay: dur(delay), easing: isIn ? EASE_OUT : EASE_IN, fill: 'both' });
+  });
+  return Promise.all(anims.map(a => a.finished)).then(() => anims, () => anims);
+}
+
+/* ================= Навигация ================= */
+const views = { start: $('#start'), apps: $('#apps'), app: $('#page') };
+const items = v => v.kind === 'start' ? $$('#start .tile, #start .more')
+  : v.kind === 'apps' ? $$('#apps .ts') : $$('#page .ts');
+function parse() {
+  const h = location.hash;
+  if (h === '#/apps') return { kind: 'apps' };
+  const m = h.match(/^#\/app\/(\w+)/);
+  if (m && APPS[m[1]]) return { kind: 'app', id: m[1] };
+  return { kind: 'start' };
+}
+let cur = null, lastTile = null;
+const scrolls = { start: 0, apps: 0 };
+const hist = [];
+const hideAll = () => Object.values(views).forEach(v => v.hidden = true);
+
+function afterShow() {}
+async function go(v) {
+  const old = cur;
+  if (old && old.kind === v.kind && old.id === v.id) return;
+  const key = v.kind + (v.id || '');
+  if (hist.length > 1 && hist[hist.length - 2] === key) hist.pop(); else hist.push(key);
+  cur = v;
+  if (!old) { hideAll(); if (v.kind === 'app') buildPage(v.id); views[v.kind].hidden = false; return; }
+  if (old.kind !== 'app') scrolls[old.kind] = scrollY;
+  $('#jump').hidden = true;
+
+  if (old.kind !== 'app' && v.kind !== 'app') {           // пуск ⇄ список: панорамный сдвиг
+    const dir = v.kind === 'apps' ? 1 : -1;
+    const a = views[old.kind].animate([{ transform: 'none', opacity: 1 }, { transform: `translateX(${-70 * dir}px)`, opacity: 0 }],
+      { duration: dur(170), easing: EASE_IN, fill: 'forwards' });
+    await a.finished; hideAll(); a.cancel();
+    views[v.kind].hidden = false; scrollTo(0, scrolls[v.kind]);
+    await views[v.kind].animate([{ transform: `translateX(${70 * dir}px)`, opacity: 0 }, { transform: 'none', opacity: 1 }],
+      { duration: dur(420), easing: EASE_OUT }).finished;
+    afterShow(); return;
+  }
+  const fwd = v.kind === 'app';                             // турникет вперёд / назад
+  const outs = await turnstile(items(old), fwd ? 'out-fwd' : 'out-back', fwd ? lastTile : null);
+  hideAll(); outs.forEach(a => a.cancel());
+  if (v.kind === 'app') buildPage(v.id);
+  views[v.kind].hidden = false;
+  scrollTo(0, v.kind === 'app' ? 0 : scrolls[v.kind]);
+  const ins = await turnstile(items(v), fwd ? 'in-fwd' : 'in-back');
+  ins.forEach(a => a.cancel());
+  lastTile = null; afterShow();
+}
+let queue = Promise.resolve();
+const navigate = () => { queue = queue.then(() => go(parse())).catch(() => {}); };
+addEventListener('hashchange', navigate);
+document.addEventListener('click', e => { const t = e.target.closest('#start .tile'); if (t) lastTile = t; }, true);
+if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+
+function back() {
+  if (!cur || cur.kind === 'start') return;
+  if (hist.length > 1) history.back(); else location.replace('#/');
+}
+// свайп: пуск ← → список приложений (как в WP 8.1)
+(() => {
+  let sx = null, sy = 0;
+  document.addEventListener('pointerdown', e => { if (e.pointerType !== 'mouse' && lock.hidden) { sx = e.clientX; sy = e.clientY; } });
+  document.addEventListener('pointerup', e => {
+    if (sx === null || !cur) return;
+    const dx = e.clientX - sx, dy = e.clientY - sy; sx = null;
+    if (Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+    if (cur.kind === 'start' && dx < 0) location.hash = '#/apps';
+    else if (cur.kind === 'apps' && dx > 0) back();
+  });
+})();
+document.addEventListener('keydown', e => {
+  if (!$('#lock').hidden) { unlock(0); return; }
+  const typing = e.target.matches('input, textarea');
+  if (e.key === 'Escape' || (e.key === 'Backspace' && !typing)) {
+    if (!$('#jump').hidden) { $('#jump').hidden = true; return; }
+    e.preventDefault(); back();
+  }
+});
+
+/* ================= Экран блокировки ================= */
+const lock = $('#lock');
+function intro() { turnstile(items(cur), 'in-fwd').then(a => a.forEach(x => x.cancel())); }
+function unlock(fromY) {
+  if (lock.hidden || lock.dataset.gone) return;
+  lock.dataset.gone = 1;
+  lock.style.transform = '';
+  lock.animate([{ transform: `translateY(${fromY || 0}px)` }, { transform: 'translateY(-100%)' }],
+    { duration: dur(420), easing: 'cubic-bezier(.4,0,.6,1)', fill: 'forwards' })
+    .finished.then(() => { lock.hidden = true; intro(); });
+}
+(() => {
+  let y0 = null, dy = 0;
+  lock.addEventListener('pointerdown', e => { y0 = e.clientY; dy = 0; lock.setPointerCapture(e.pointerId); lock.style.transition = 'none'; });
+  lock.addEventListener('pointermove', e => { if (y0 === null) return; dy = Math.min(0, e.clientY - y0); lock.style.transform = `translateY(${dy}px)`; });
+  const end = () => {
+    if (y0 === null) return; y0 = null;
+    if (dy < -60 || Math.abs(dy) < 6) unlock(dy);
+    else { lock.style.transition = 'transform .3s cubic-bezier(.1,.9,.2,1)'; lock.style.transform = ''; }
+  };
+  lock.addEventListener('pointerup', end);
+  lock.addEventListener('pointercancel', end);
+})();
+
+/* ================= Старт ================= */
+go(parse());
+if (store.get('lock', CONFIG.lockScreen) && cur.kind === 'start') lock.hidden = false;
+else intro();
+})();
+</script>
+</body>
+</html>
