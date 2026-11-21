@@ -5,11 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#000000">
 <title>Bebber</title>
+<link rel="icon" href="img/arthub.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600&display=swap">
 <style>
-/* ===== Шрифты: Segoe WP, если установлен (или лежит в папке fonts/), иначе Segoe UI ===== */
-@font-face{font-family:"WP";font-weight:300;src:local("Segoe WP Light"),local("SegoeWP-Light"),url("fonts/SegoeWP-Light.woff2") format("woff2"),local("Segoe UI Light"),local("SegoeUI-Light")}
-@font-face{font-family:"WP";font-weight:400;src:local("Segoe WP"),local("SegoeWP"),url("fonts/SegoeWP.woff2") format("woff2"),local("Segoe UI"),local("SegoeUI")}
-@font-face{font-family:"WP";font-weight:600;src:local("Segoe WP Semibold"),local("SegoeWP-Semibold"),url("fonts/SegoeWP-Semibold.woff2") format("woff2"),local("Segoe UI Semibold"),local("SegoeUI-Semibold")}
+/* ===== Шрифты: Segoe WP / Segoe UI с устройства, иначе Open Sans (Google Fonts) ===== */
+@font-face{font-family:"WP";font-weight:300;src:local("Segoe WP Light"),local("SegoeWP-Light"),local("Segoe UI Light"),local("SegoeUI-Light")}
+@font-face{font-family:"WP";font-weight:400;src:local("Segoe WP"),local("SegoeWP"),local("Segoe UI"),local("SegoeUI")}
+@font-face{font-family:"WP";font-weight:600;src:local("Segoe WP Semibold"),local("SegoeWP-Semibold"),local("Segoe UI Semibold"),local("SegoeUI-Semibold")}
 
 :root{
   --accent:#1BA1E2;
@@ -24,11 +28,12 @@
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 html{background:#000;scrollbar-color:#333 #000}
-body{margin:0;padding:44px 0 76px;background:#000;color:#fff;
-  font-family:"WP","Segoe WP","Segoe UI","Selawik","Open Sans",Tahoma,sans-serif;
+body{margin:0;padding:44px 0 40px;background:#000;color:#fff;
+  font-family:"WP","Segoe WP","Segoe UI","Open Sans",Tahoma,sans-serif;
   -webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent;overflow-x:hidden;
   user-select:none;-webkit-user-select:none}
 a{color:inherit;text-decoration:none}
+a,img{-webkit-user-drag:none;user-drag:none}
 button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
 #shell{width:var(--w);margin:0 auto;position:relative}
 
@@ -40,7 +45,11 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
 .sig i{display:block;width:3px;background:#fff}
 .bat{width:22px;height:11px;border:1.5px solid #fff;position:relative;padding:1.5px}
 .bat::after{content:"";position:absolute;right:-4px;top:2.5px;width:2px;height:4px;background:#fff}
-.bat i{display:block;height:100%;width:72%;background:#fff}
+.bat i{display:block;height:100%;width:100%;background:#fff}
+.bat.low i{background:#E51400}
+#batPct{font-size:12px}
+.bolt{width:9px;height:12px;fill:#fff;display:none}
+#batWrap.charging .bolt{display:block}
 
 /* ===== Плитки ===== */
 .grid{display:grid;grid-template-columns:repeat(var(--cols),var(--cell));grid-auto-rows:var(--cell);
@@ -63,6 +72,7 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
 .tile.flip .face{backface-visibility:hidden;-webkit-backface-visibility:hidden}
 .tile.flip .back{transform:rotateX(180deg)}
 .tile.flip.on .tile-in{transform:rotateX(180deg)}
+.face.pic{background-size:cover;background-position:center}
 .face svg{width:calc(var(--cell) * .55);height:auto;stroke:#fff;fill:none;stroke-width:1.4;stroke-linecap:square}
 .tile.m .face svg,.tile.w .face svg{width:calc(var(--cell) * .72)}
 .label{position:absolute;left:8px;bottom:6px;font-size:14px;line-height:1.1}
@@ -88,6 +98,11 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
 .app-row{display:flex;align-items:center;gap:14px;padding:5px 0;font-size:22px;width:max-content;max-width:100%}
 .app-ico{width:52px;height:52px;background:var(--accent);display:flex;align-items:center;justify-content:center;flex:none}
 .app-ico svg{width:28px;stroke:#fff;fill:none;stroke-width:1.6}
+.app-ico img{width:100%;height:100%;object-fit:cover;display:block}
+.li.pli{display:flex;align-items:center;gap:14px}
+.pli .app-ico{width:62px;height:62px}
+.pli .app-ico svg{width:32px}
+.about-ico{width:120px;height:120px;margin:4px 0 18px;display:block}
 #jump{position:fixed;inset:0;z-index:60;background:#000000ee;display:flex;align-items:center;justify-content:center;padding:40px 16px}
 #jump .jl{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;width:min(100%,460px)}
 #jump button{aspect-ratio:1;font-size:30px;font-weight:300;display:flex;align-items:flex-end;padding:0 0 4px 8px;background:#1d1d1d;color:#555}
@@ -121,12 +136,6 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
 .toggle input:checked+.sw::after{left:42px}
 .t-s{font-size:20px;font-weight:300}
 
-/* ===== Нижняя панель (назад / пуск / поиск) ===== */
-#nav{position:fixed;bottom:0;left:0;right:0;height:52px;background:#000;display:flex;justify-content:space-around;align-items:center;z-index:50}
-#nav button{width:90px;height:52px;display:flex;align-items:center;justify-content:center}
-#nav svg{width:24px;stroke:#fff;fill:none;stroke-width:1.6}
-#nav button:active svg{stroke:var(--accent)}
-
 /* ===== Экран блокировки ===== */
 #lock{position:fixed;inset:0;z-index:100;background:#000;
   background:radial-gradient(ellipse at 30% 15%,color-mix(in srgb,var(--accent) 50%,#000) 0%,#000 72%);
@@ -149,13 +158,16 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
 
 <div id="status">
   <div class="grp"><span class="sig"><i style="height:4px"></i><i style="height:6px"></i><i style="height:8px"></i><i style="height:10px"></i><i style="height:12px"></i></span></div>
-  <div class="grp"><span class="bat"><i></i></span><span id="sTime"></span></div>
+  <div class="grp">
+    <span class="grp" id="batWrap" hidden><span id="batPct"></span><svg class="bolt" viewBox="0 0 9 12"><path d="M6 0L0 7h3.5L2.5 12 9 4.5H5.5z"/></svg><span class="bat"><i></i></span></span>
+    <span id="sTime"></span>
+  </div>
 </div>
 
 <div id="shell">
   <section id="start" hidden>
     <div class="grid" id="tiles"></div>
-    <a class="more" href="#/apps" aria-label="все приложения"><span class="tilt"></span></a>
+    <a class="more" href="#/apps" draggable="false" aria-label="все приложения"><span class="tilt"></span></a>
   </section>
 
   <section id="apps" hidden>
@@ -168,11 +180,6 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
 
 <div id="jump" hidden><div class="jl"></div></div>
 
-<nav id="nav">
-  <button id="bBack" aria-label="назад"></button>
-  <button id="bHome" aria-label="пуск"></button>
-  <button id="bSearch" aria-label="поиск"></button>
-</nav>
 
 <script>
 (() => {
@@ -181,38 +188,45 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
 /* ================= НАСТРОЙКИ — меняйте здесь ================= */
 const CONFIG = {
   name: 'Bebber',
-  accent: '#1BA1E2',          // цвет по умолчанию (кобальт/голубой WP)
+  accent: '#1BA1E2',          // цвет по умолчанию
   lockScreen: true,           // показывать экран блокировки при входе
-  github: 'https://github.com/USERNAME',
-  email: 'you@example.com',
-  telegram: 'https://t.me/USERNAME'
+  github: 'https://github.com/bebber',
+  email: '',                  // например 'bebber@mail.ru' — пусто = не показывать
+  telegram: ''                // например 'https://t.me/bebber' — пусто = не показывать
 };
 
+/* Проекты. id — своя страница-приложение; img — иконка (папка img/); url — внешняя ссылка */
 const PROJECTS = [
-  { name: 'ArtHub',           sub: 'моё приложение · Windows Phone 8',            url: '#' },
-  { name: 'WpMirror',         sub: 'зеркало экрана телефона на ПК по USB',        url: '#' },
-  { name: 'MSN Money Stocks', sub: 'порт с WP7 на Windows Phone 8.1',             url: '#' },
-  { name: 'OZON',             sub: 'возрождение приложения OZON.ru',              url: '#' },
-  { name: 'Avito',            sub: 'порт Avito с WP7 на 8.1',                     url: '#' },
-  { name: 'Treasure Clicker', sub: 'кликер на Nokia Treasure Tag',                url: '#' },
-  { name: 'OpenTracks',       sub: 'музыкальный клиент в стиле старого WP',       url: '#' }
+  { id: 'arthub', name: 'ArtHub', img: 'img/arthub.png', sub: 'моё приложение · Windows Phone 8',
+    about: 'Моё собственное приложение для Windows Phone 8 — клиент для галерей артов. Сделано в Visual Studio 2013 с Windows Phone SDK 8, развитие продолжается.' },
+  { id: 'msnmoney', name: 'MSN Money Stocks', img: 'img/msn-money.png', sub: 'порт с WP7 на Windows Phone 8.1',
+    about: 'Старое приложение MSN Money Stocks для Windows Phone 7 (версия 1.8), перенесённое на Windows Phone 8.1 с работающими котировками.' },
+  { name: 'WpMirror',         sub: 'зеркало экрана телефона на ПК по USB' },
+  { name: 'OZON',             sub: 'возрождение приложения OZON.ru' },
+  { name: 'Avito',            sub: 'порт Avito с WP7 на 8.1' },
+  { name: 'Treasure Clicker', sub: 'кликер на Nokia Treasure Tag' },
+  { name: 'OpenTracks',       sub: 'музыкальный клиент в стиле старого WP' }
 ];
 
 /* Плитки рабочего стола. size: s 1×1, m 2×2, w 4×2, l 4×4.
-   live: 'flip' (переворот) или 'peek' (выезд вверх). to: внутренняя ссылка, href: внешняя. */
+   live: 'flip' (переворот) или 'peek' (выезд вверх). to: внутренняя ссылка, href: внешняя, img: картинка-плитка. */
 const TILES = [
   { size: 'w', type: 'clock', live: 'peek' },
   { size: 'm', to: '#/app/about', label: 'обо мне', icon: 'person', live: 'flip',
     back: `<div class="b-title">${CONFIG.name}</div><div class="b-text">разработчик приложений для Windows Phone</div>` },
-  { size: 'm', to: '#/app/contact', label: 'контакты', icon: 'mail', count: 1, live: 'peek',
-    back: `<div class="b-title">напишите мне</div><div class="b-text">${CONFIG.email}</div>` },
+  { size: 'm', to: '#/app/contact', label: 'контакты', icon: 'mail', live: 'peek',
+    back: `<div class="b-title">напишите мне</div><div class="b-text">${CONFIG.email || CONFIG.github.replace(/^https?:\/\//, '')}</div>` },
   { size: 'w', to: '#/app/projects', label: 'проекты', icon: 'code', live: 'flip', feed: true },
   { size: 'm', to: '#/app/skills', label: 'навыки', icon: 'star', live: 'peek',
     back: `<div class="b-title">C# · XAML</div><div class="b-text">Silverlight, WinRT, WinForms</div>` },
   { size: 's', to: '#/app/settings', icon: 'gear' },
   { size: 's', href: CONFIG.github, icon: 'ext' },
   { size: 's', to: '#/apps', icon: 'grid' },
-  { size: 's', to: '#/app/about', icon: 'phone' }
+  { size: 's', to: '#/app/about', icon: 'phone' },
+  { size: 'm', to: '#/app/arthub', label: 'ArtHub', img: 'img/arthub.png', live: 'flip',
+    back: `<div class="b-title">ArtHub</div><div class="b-text">моё приложение для Windows Phone 8</div>` },
+  { size: 'm', to: '#/app/msnmoney', label: 'MSN Money', img: 'img/msn-money.png', live: 'flip',
+    back: `<div class="b-title">MSN Money Stocks</div><div class="b-text">порт с WP7 на 8.1</div>` }
 ];
 
 const ACCENTS = [
@@ -238,6 +252,7 @@ const I = {
   arrow:  '<path d="M4 12h16M14 6l6 6-6 6"/>'
 };
 const svg = n => `<svg viewBox="0 0 24 24" aria-hidden="true">${I[n] || ''}</svg>`;
+const ico = a => a.img ? `<img src="${a.img}" alt="" draggable="false">` : svg(a.icon);
 
 /* ================= Утилиты ================= */
 const $ = (s, r = document) => r.querySelector(s);
@@ -260,10 +275,13 @@ setAccent(getAccent());
 
 /* ================= Разметка ================= */
 const link = (href, inner, cls) => href && href !== '#'
-  ? `<a class="${cls}" href="${href}"${isExt(href) ? ' target="_blank" rel="noopener"' : ''}>${inner}</a>`
+  ? `<a class="${cls}" href="${href}" draggable="false"${isExt(href) ? ' target="_blank" rel="noopener"' : ''}>${inner}</a>`
   : `<div class="${cls}">${inner}</div>`;
 const li = (t, s, href) => link(href, `<div class="li-t">${t}</div>${s ? `<div class="li-s">${s}</div>` : ''}`,
   'li ts' + (href && href !== '#' ? ' tilt' : ''));
+const pli = x => link(x.id ? '#/app/' + x.id : x.url,
+  `<span class="app-ico">${x.img ? ico(x) : svg('code')}</span><span><div class="li-t">${x.name}</div><div class="li-s">${x.sub}</div></span>`,
+  'li pli ts' + (x.id || x.url ? ' tilt' : ''));
 const p = (t, cls = '') => `<p class="txt ${cls} ts">${t}</p>`;
 const short = u => u.replace(/^(https?:\/\/|mailto:)/, '');
 const toggle = (id, label, on) => `<label class="toggle ts"><span class="t-l">${label}</span><span class="t-r">
@@ -278,7 +296,7 @@ const APPS = {
     { h: 'устройства', render: () => li('Lumia 830', 'основной тестовый телефон') + li('Windows Phone 8.1', 'второй телефон для проверки') }
   ]},
   projects: { title: 'проекты', icon: 'code', pivots: [
-    { h: 'проекты', render: () => PROJECTS.map(x => li(x.name, x.sub, x.url)).join('') },
+    { h: 'проекты', render: () => PROJECTS.map(pli).join('') },
     { h: 'github', render: () => p('Исходники и релизы — на GitHub.') + li('github', short(CONFIG.github), CONFIG.github) }
   ]},
   skills: { title: 'навыки', icon: 'star', pivots: [
@@ -288,8 +306,8 @@ const APPS = {
       li('Git', 'и GitHub Pages для этого сайта') }
   ]},
   contact: { title: 'контакты', icon: 'mail', pivots: [
-    { h: 'контакты', render: () => li('почта', CONFIG.email, 'mailto:' + CONFIG.email) +
-      li('github', short(CONFIG.github), CONFIG.github) + li('telegram', short(CONFIG.telegram), CONFIG.telegram) }
+    { h: 'контакты', render: () => (CONFIG.email ? li('почта', CONFIG.email, 'mailto:' + CONFIG.email) : '') +
+      li('github', short(CONFIG.github), CONFIG.github) + (CONFIG.telegram ? li('telegram', short(CONFIG.telegram), CONFIG.telegram) : '') }
   ]},
   settings: { title: 'настройки', icon: 'gear', pivots: [
     { h: 'тема', render: () =>
@@ -306,28 +324,37 @@ const APPS = {
         t.onchange = () => { store.set('lock', t.checked); t.parentNode.querySelector('.t-s').textContent = t.checked ? 'вкл.' : 'выкл.'; };
       } },
     { h: 'о сайте', render: () =>
-      p('Сайт в стиле Windows Phone 8.1. Один файл index.html, без библиотек, размещён на GitHub Pages.') +
-      p('Шрифт — Segoe WP, если он есть на устройстве или в папке fonts/, иначе Segoe UI.') +
+      p('Сайт в стиле Windows Phone 8.1, размещён на GitHub Pages: bebber.github.io.') +
+      p('Шрифт — Segoe WP или Segoe UI, если они есть на устройстве, иначе Open Sans из Google Fonts.') +
       `<button class="btn ts tilt" id="reset">сбросить настройки</button>`,
       mount: b => { $('#reset', b).onclick = () => { store.clear(); setAccent(CONFIG.accent); }; } }
   ]}
 };
 
+// страницы проектов с id
+PROJECTS.filter(x => x.id).forEach(x => {
+  APPS[x.id] = { title: x.name, img: x.img, icon: 'code', pivots: [
+    { h: 'о приложении', render: () =>
+      (x.img ? `<img class="about-ico ts" src="${x.img}" alt="" draggable="false">` : '') +
+      p(x.name, 'lead') + p(x.about || x.sub) + (x.url ? li('открыть', short(x.url), x.url) : '') }
+  ]};
+});
+
 /* ================= Рабочий стол ================= */
 function tileHTML(t) {
   const tag = t.href ? 'a' : t.to ? 'a' : 'div';
-  const attrs = t.href ? ` href="${t.href}" target="_blank" rel="noopener"` : t.to ? ` href="${t.to}"` : '';
+  const attrs = (t.href ? ` href="${t.href}" target="_blank" rel="noopener"` : t.to ? ` href="${t.to}"` : '') + ' draggable="false"';
   const label = t.size !== 's' && t.label ? `<span class="label">${t.label}</span>` : '';
   let front, back = '';
   if (t.type === 'clock') {
     front = '<div class="clock"><div class="c-time"></div></div>';
     back = '<div class="clock"><div class="c-day"></div><div class="c-date"></div></div>';
   } else {
-    front = svg(t.icon) + (t.count ? `<span class="count">${t.count}</span>` : '') + label;
+    front = (t.img ? '' : svg(t.icon)) + (t.count ? `<span class="count">${t.count}</span>` : '') + label;
     back = (t.feed ? '<div class="feed"></div>' : (t.back || '')) + label;
   }
   return `<${tag} class="tile ${t.size} ${t.live || ''}"${attrs}${t.feed ? ' data-feed="1"' : ''}>
-    <div class="tile-body tilt"><div class="tile-in"><div class="face front">${front}</div>${t.live ? `<div class="face back">${back}</div>` : ''}</div></div></${tag}>`;
+    <div class="tile-body tilt"><div class="tile-in"><div class="face front${t.img ? ' pic' : ''}"${t.img ? ` style="background-image:url('${t.img}')"` : ''}>${front}</div>${t.live ? `<div class="face back">${back}</div>` : ''}</div></div></${tag}>`;
 }
 $('#tiles').innerHTML = TILES.map(tileHTML).join('');
 $('.more span').innerHTML = svg('arrow');
@@ -367,221 +394,23 @@ function tick() {
 }
 tick(); setInterval(tick, 1000);
 
+/* ================= Батарея (Battery Status API) ================= */
+if (navigator.getBattery) {
+  navigator.getBattery().then(b => {
+    const wrap = $('#batWrap'), bat = $('.bat');
+    const upd = () => {
+      const pct = Math.round(b.level * 100);
+      $('.bat i').style.width = pct + '%';
+      $('#batPct').textContent = pct + '%';
+      wrap.classList.toggle('charging', b.charging);
+      bat.classList.toggle('low', pct <= 15 && !b.charging);
+      wrap.hidden = false;
+    };
+    upd();
+    b.addEventListener('levelchange', upd);
+    b.addEventListener('chargingchange', upd);
+  }).catch(() => {});
+}
+
 /* ================= Список приложений ================= */
-const APP_LIST = Object.entries(APPS).map(([id, a]) => ({ name: a.title, icon: a.icon, to: '#/app/' + id }))
-  .concat([{ name: 'github', icon: 'ext', href: CONFIG.github }])
-  .sort((a, b) => a.name.localeCompare(b.name, 'ru'));
-const letterOf = n => n[0].toLowerCase();
-function renderAppList() {
-  let html = '', last = '';
-  APP_LIST.forEach(a => {
-    const L = letterOf(a.name);
-    if (L !== last) { html += `<button class="letter ts" data-l="${L}">${L}</button>`; last = L; }
-    const attrs = a.href ? `href="${a.href}" target="_blank" rel="noopener"` : `href="${a.to}"`;
-    html += `<a class="app-row ts tilt" data-n="${a.name}" ${attrs}><span class="app-ico">${svg(a.icon)}</span><span>${a.name}</span></a>`;
-  });
-  $('#appList').innerHTML = html;
-}
-renderAppList();
-
-$('#search').addEventListener('input', e => {
-  const q = e.target.value.trim().toLowerCase();
-  $$('#appList .app-row').forEach(r => r.hidden = q && !r.dataset.n.includes(q));
-  $$('#appList .letter').forEach(l => l.hidden = !!q);
-});
-
-const ALPHA = [...new Set(APP_LIST.map(a => letterOf(a.name)).filter(l => /[a-z]/.test(l)))]
-  .concat([...'абвгдеёжзийклмнопрстуфхцчшщэюя']);
-$('#appList').addEventListener('click', e => {
-  if (!e.target.closest('.letter')) return;
-  const has = new Set(APP_LIST.map(a => letterOf(a.name)));
-  const jl = $('#jump .jl');
-  jl.innerHTML = ALPHA.map(l => `<button class="${has.has(l) ? 'has' : ''}" data-l="${l}">${l}</button>`).join('');
-  $('#jump').hidden = false;
-  jl.animate([{ transform: 'scale(1.15)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: dur(260), easing: EASE_OUT });
-});
-$('#jump').addEventListener('click', e => {
-  const b = e.target.closest('button');
-  if (b && !b.classList.contains('has')) return;
-  $('#jump').hidden = true;
-  if (b) { const t = $(`#appList .letter[data-l="${b.dataset.l}"]`); if (t) scrollTo(0, t.getBoundingClientRect().top + scrollY - 40); }
-});
-
-/* ================= Страница с pivot ================= */
-function buildPage(id) {
-  const app = APPS[id], page = $('#page');
-  page.innerHTML = `<div class="app-title ts">${CONFIG.name.toUpperCase()}</div><div class="pivot-heads ts"></div><div class="pivot-body"></div>`;
-  page._app = app;
-  showPivot(0, 0);
-}
-function showPivot(i, dir) {
-  const page = $('#page'), app = page._app, n = app.pivots.length;
-  page._i = i;
-  const heads = $('.pivot-heads', page), body = $('.pivot-body', page);
-  heads.innerHTML = [...Array(n)].map((_, k) => (i + k) % n)
-    .map(k => `<button class="ph${k === i ? ' on' : ''}" data-i="${k}">${app.pivots[k].h}</button>`).join('');
-  body.innerHTML = app.pivots[i].render();
-  if (app.pivots[i].mount) app.pivots[i].mount(body);
-  if (dir) {
-    heads.animate([{ transform: `translateX(${dir * 50}px)`, opacity: .4 }, { transform: 'none', opacity: 1 }], { duration: dur(380), easing: EASE_OUT });
-    $$('.ts', body).forEach((el, k) => el.animate(
-      [{ transform: `translateX(${dir * 90}px)`, opacity: 0 }, { transform: 'none', opacity: 1 }],
-      { duration: dur(420), delay: dur(k * 30), easing: EASE_OUT, fill: 'backwards' }));
-  }
-}
-$('#page').addEventListener('click', e => {
-  const h = e.target.closest('.ph'); if (!h) return;
-  const i = +h.dataset.i; if (i !== $('#page')._i) showPivot(i, 1);
-});
-(() => { // свайп между вкладками pivot
-  let sx = null, sy = 0;
-  const page = $('#page');
-  page.addEventListener('pointerdown', e => { if (e.pointerType !== 'mouse') { sx = e.clientX; sy = e.clientY; } });
-  page.addEventListener('pointerup', e => {
-    if (sx === null) return;
-    const dx = e.clientX - sx, dy = e.clientY - sy; sx = null;
-    const n = page._app ? page._app.pivots.length : 1;
-    if (n < 2 || Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
-    const d = dx < 0 ? 1 : -1;
-    showPivot((page._i + d + n) % n, d);
-  });
-})();
-
-/* ================= Наклон при нажатии (tilt) ================= */
-let pressed = null;
-document.addEventListener('pointerdown', e => {
-  const el = e.target.closest('.tilt'); if (!el) return;
-  const r = el.getBoundingClientRect();
-  const x = (e.clientX - r.left) / r.width - .5, y = (e.clientY - r.top) / r.height - .5;
-  const k = Math.min(1, 220 / Math.max(r.width, r.height));
-  el.style.transform = `perspective(800px) rotateY(${x * 18 * k}deg) rotateX(${-y * 18 * k}deg) scale(.97)`;
-  pressed = el;
-});
-const release = () => { if (pressed) { pressed.style.transform = ''; pressed = null; } };
-['pointerup', 'pointercancel', 'dragstart'].forEach(ev => document.addEventListener(ev, release));
-document.addEventListener('pointerleave', release);
-
-/* ================= Анимация «турникет» ================= */
-function turnstile(els, mode, first) {
-  const shellL = $('#shell').getBoundingClientRect().left;
-  const vis = els.filter(el => { if (el.hidden) return false; const r = el.getBoundingClientRect(); return r.height && r.bottom > 0 && r.top < innerHeight; });
-  vis.sort((a, b) => { const ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect(); return (ra.top - rb.top) || (ra.left - rb.left); });
-  if (first) { const k = vis.indexOf(first); if (k > -1) { vis.splice(k, 1); vis.push(first); } }
-  const isIn = mode.startsWith('in'), fwd = mode.endsWith('fwd');
-  const ang = isIn ? (fwd ? -80 : 80) : (fwd ? 80 : -80);
-  const from = isIn ? { transform: `perspective(2000px) rotateY(${ang}deg)`, opacity: 0 } : { transform: 'perspective(2000px) rotateY(0deg)', opacity: 1 };
-  const to = isIn ? { transform: 'perspective(2000px) rotateY(0deg)', opacity: 1 } : { transform: `perspective(2000px) rotateY(${ang}deg)`, opacity: 0 };
-  const anims = vis.map((el, i) => {
-    el.style.transformOrigin = `${-(el.getBoundingClientRect().left - shellL)}px 50%`;
-    const delay = Math.min(i, 14) * 24 + (el === first ? 90 : 0);
-    return el.animate([from, to], { duration: dur(isIn ? 380 : 230), delay: dur(delay), easing: isIn ? EASE_OUT : EASE_IN, fill: 'both' });
-  });
-  return Promise.all(anims.map(a => a.finished)).then(() => anims, () => anims);
-}
-
-/* ================= Навигация ================= */
-const views = { start: $('#start'), apps: $('#apps'), app: $('#page') };
-const items = v => v.kind === 'start' ? $$('#start .tile, #start .more')
-  : v.kind === 'apps' ? $$('#apps .ts') : $$('#page .ts');
-function parse() {
-  const h = location.hash;
-  if (h === '#/apps') return { kind: 'apps' };
-  const m = h.match(/^#\/app\/(\w+)/);
-  if (m && APPS[m[1]]) return { kind: 'app', id: m[1] };
-  return { kind: 'start' };
-}
-let cur = null, lastTile = null, focusSearch = false;
-const scrolls = { start: 0, apps: 0 };
-const hist = [];
-const hideAll = () => Object.values(views).forEach(v => v.hidden = true);
-
-function afterShow() {
-  if (focusSearch && cur.kind === 'apps') { focusSearch = false; $('#search').focus(); }
-}
-async function go(v) {
-  const old = cur;
-  if (old && old.kind === v.kind && old.id === v.id) return;
-  const key = v.kind + (v.id || '');
-  if (hist.length > 1 && hist[hist.length - 2] === key) hist.pop(); else hist.push(key);
-  cur = v;
-  if (!old) { hideAll(); if (v.kind === 'app') buildPage(v.id); views[v.kind].hidden = false; return; }
-  if (old.kind !== 'app') scrolls[old.kind] = scrollY;
-  $('#jump').hidden = true;
-
-  if (old.kind !== 'app' && v.kind !== 'app') {           // пуск ⇄ список: панорамный сдвиг
-    const dir = v.kind === 'apps' ? 1 : -1;
-    const a = views[old.kind].animate([{ transform: 'none', opacity: 1 }, { transform: `translateX(${-70 * dir}px)`, opacity: 0 }],
-      { duration: dur(170), easing: EASE_IN, fill: 'forwards' });
-    await a.finished; hideAll(); a.cancel();
-    views[v.kind].hidden = false; scrollTo(0, scrolls[v.kind]);
-    await views[v.kind].animate([{ transform: `translateX(${70 * dir}px)`, opacity: 0 }, { transform: 'none', opacity: 1 }],
-      { duration: dur(420), easing: EASE_OUT }).finished;
-    afterShow(); return;
-  }
-  const fwd = v.kind === 'app';                             // турникет вперёд / назад
-  const outs = await turnstile(items(old), fwd ? 'out-fwd' : 'out-back', fwd ? lastTile : null);
-  hideAll(); outs.forEach(a => a.cancel());
-  if (v.kind === 'app') buildPage(v.id);
-  views[v.kind].hidden = false;
-  scrollTo(0, v.kind === 'app' ? 0 : scrolls[v.kind]);
-  const ins = await turnstile(items(v), fwd ? 'in-fwd' : 'in-back');
-  ins.forEach(a => a.cancel());
-  lastTile = null; afterShow();
-}
-let queue = Promise.resolve();
-const navigate = () => { queue = queue.then(() => go(parse())).catch(() => {}); };
-addEventListener('hashchange', navigate);
-document.addEventListener('click', e => { const t = e.target.closest('#start .tile'); if (t) lastTile = t; }, true);
-if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
-
-function back() {
-  if (!cur || cur.kind === 'start') return;
-  if (hist.length > 1) history.back(); else location.replace('#/');
-}
-$('#bBack').innerHTML = svg('back');
-$('#bHome').innerHTML = svg('grid');
-$('#bSearch').innerHTML = svg('search');
-$('#bBack').onclick = back;
-$('#bHome').onclick = () => { if (cur.kind !== 'start') location.hash = '#/'; };
-$('#bSearch').onclick = () => { focusSearch = true; if (cur.kind !== 'apps') location.hash = '#/apps'; else afterShow(); };
-document.addEventListener('keydown', e => {
-  if (!$('#lock').hidden) { unlock(0); return; }
-  const typing = e.target.matches('input, textarea');
-  if (e.key === 'Escape' || (e.key === 'Backspace' && !typing)) {
-    if (!$('#jump').hidden) { $('#jump').hidden = true; return; }
-    e.preventDefault(); back();
-  }
-});
-
-/* ================= Экран блокировки ================= */
-const lock = $('#lock');
-function intro() { turnstile(items(cur), 'in-fwd').then(a => a.forEach(x => x.cancel())); }
-function unlock(fromY) {
-  if (lock.hidden || lock.dataset.gone) return;
-  lock.dataset.gone = 1;
-  lock.style.transform = '';
-  lock.animate([{ transform: `translateY(${fromY || 0}px)` }, { transform: 'translateY(-100%)' }],
-    { duration: dur(420), easing: 'cubic-bezier(.4,0,.6,1)', fill: 'forwards' })
-    .finished.then(() => { lock.hidden = true; intro(); });
-}
-(() => {
-  let y0 = null, dy = 0;
-  lock.addEventListener('pointerdown', e => { y0 = e.clientY; dy = 0; lock.setPointerCapture(e.pointerId); lock.style.transition = 'none'; });
-  lock.addEventListener('pointermove', e => { if (y0 === null) return; dy = Math.min(0, e.clientY - y0); lock.style.transform = `translateY(${dy}px)`; });
-  const end = () => {
-    if (y0 === null) return; y0 = null;
-    if (dy < -60 || Math.abs(dy) < 6) unlock(dy);
-    else { lock.style.transition = 'transform .3s cubic-bezier(.1,.9,.2,1)'; lock.style.transform = ''; }
-  };
-  lock.addEventListener('pointerup', end);
-  lock.addEventListener('pointercancel', end);
-})();
-
-/* ================= Старт ================= */
-go(parse());
-if (store.get('lock', CONFIG.lockScreen) && cur.kind === 'start') lock.hidden = false;
-else intro();
-})();
-</script>
-</body>
-</html>
+const APP_LIST = Object.entries(APPS).map(([id, a]) => ({ name: a.title, icon: a.icon, img:
