@@ -80,13 +80,11 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
 .tile.peek .face{height:50%}
 .tile.peek .back{top:50%}
 .tile.peek.on .tile-in{transform:translateY(-50%)}
-.tile.flip .tile-in{transform-style:preserve-3d;transition:transform .9s var(--ease)}
+.tile.flip .tile-in{transform-style:preserve-3d}
 .tile.flip .face,.tile.flip .face *{backface-visibility:hidden;-webkit-backface-visibility:hidden}
-.tile.flip .face{transition:visibility 0s linear .07s}
 .tile.flip .back,.tile.flip.on .front{visibility:hidden}
 .tile.flip.on .back{visibility:visible}
 .tile.flip .back{transform:rotateX(180deg)}
-.tile.flip.on .tile-in{transform:rotateX(180deg)}
 .face.pic{background-size:cover;background-position:center;background-repeat:no-repeat;background-attachment:scroll}
 .face .gl{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none}
 .tile{color:#fff}
@@ -680,13 +678,38 @@ if ('ResizeObserver' in window) new ResizeObserver(() => layoutWall()).observe($
 addEventListener('resize', () => layoutWall());
 
 let feedIdx = 0;
+/* Переворот живой плитки — два варианта, сняты покадрово с WP 8.1 (видео 33 %, пересчитано в реальное время).
+   a — угол поворота от текущего, o — доля времени, e — сглаживание участка, который начинается с этого кадра.
+   Положительный угол — верх плитки уходит от зрителя. */
+const FLIPS = [
+  // 1) резкий переворот (~0,21 с), отскок назад на ~30° и возврат на место
+  { T: 600, dir: 1, cross: 0.195, k: [
+    { o: 0, a: 0, e: 'cubic-bezier(.5,0,1,1)' }, { o: .06, a: 12 }, { o: .35, a: 180, e: 'cubic-bezier(.2,.6,.4,1)' },
+    { o: .62, a: 150, e: 'cubic-bezier(.45,0,.4,1)' }, { o: 1, a: 180 }] },
+  // 2) сначала откидывается верхом назад (~0,15 с), затем переворачивается в другую сторону и с небольшим отскоком встаёт
+  { T: 680, dir: -1, cross: 0.5, k: [
+    { o: 0, a: 0, e: 'cubic-bezier(.45,0,.55,1)' }, { o: .22, a: 32 }, { o: .29, a: 30, e: 'cubic-bezier(.5,0,1,1)' },
+    { o: .39, a: 0 }, { o: .61, a: -180, e: 'cubic-bezier(.2,.6,.4,1)' }, { o: .76, a: -170, e: 'cubic-bezier(.45,0,.4,1)' }, { o: 1, a: -180 }] }
+];
 function flipTile(el) {
+  if (el._flipping) return;
   const on = el.classList.contains('on');
   if (!on && el.dataset.feed) {
     const x = PROJECTS[feedIdx++ % PROJECTS.length];
     $('.feed', el).innerHTML = `<div class="b-title">${x.name}</div><div class="b-text">${tr(x.sub)}</div>`;
   }
-  el.classList.toggle('on');
+  const tin = $('.tile-in', el), B = +(el.dataset.ang || 0), F = FLIPS[Math.random() * FLIPS.length | 0];
+  el._flipping = true;
+  const anim = tin.animate(F.k.map(k => ({ offset: k.o, transform: `rotateX(${B + k.a}deg)`, easing: k.e || 'linear' })),
+    { duration: dur(F.T), fill: 'forwards' });
+  // сторона меняется ровно в момент, когда плитка встаёт ребром (видна всегда только одна сторона)
+  const kc = F.k.findIndex(k => Math.abs(k.a) >= 90), k0 = F.k[kc - 1], k1 = F.k[kc];
+  const tc = k0.o + (k1.o - k0.o) * (90 - Math.abs(k0.a)) / (Math.abs(k1.a) - Math.abs(k0.a));
+  setTimeout(() => el.classList.toggle('on'), dur(F.T * tc));
+  anim.finished.then(() => {
+    const n = (((B + F.dir * 180) % 360) + 360) % 360;
+    el.dataset.ang = n; tin.style.transform = `rotateX(${n}deg)`; anim.cancel(); el._flipping = false;
+  }, () => { el._flipping = false; });
 }
 const startActive = () => cur && cur.kind === 'start' && !document.hidden && $('#lock').hidden && !PAN.on;
 (function liveLoop() {
