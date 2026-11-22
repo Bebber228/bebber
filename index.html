@@ -156,8 +156,11 @@ html.has-wall .tile.peek .face:not(.pic){background:transparent}
 .txt{font-size:19px;line-height:1.45;color:#ddd;max-width:760px;margin:0 0 16px;font-weight:300}
 .txt.lead{font-size:27px;color:#fff}
 .sub-h{font-size:15px;color:#9a9a9a;margin:18px 0 10px}
-.store{display:inline-block;margin:8px 0 6px;min-width:256px;min-height:60px}
-.store img{width:256px;max-width:100%;display:block}
+.ver{font-size:15px;color:var(--accent);margin:-8px 0 6px}
+.news{list-style:none;margin:0 0 6px;padding:0;max-width:760px}
+.news li{position:relative;padding:0 0 8px 22px;font-size:19px;line-height:1.4;font-weight:300;color:#ddd}
+.news li::before{content:"";position:absolute;left:2px;top:.62em;width:8px;height:8px;background:var(--accent)}
+html.light .news li{color:#333}
 .shots{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;max-width:980px}
 .shot{display:block;aspect-ratio:9/16;background:#1d1d1d;overflow:hidden}
 .shot img{width:100%;height:100%;object-fit:cover;display:block}
@@ -256,6 +259,33 @@ body.locked #status{visibility:hidden}
 html.light #msg .mb{background:#fff}
 html.light #msg .mb-b{border-color:#000}
 
+/* ===== Панель меню приложения (AppBar WP 8.1, по видео) =====
+   свёрнута: видны только круглые кнопки, подписи спрятаны за нижним краем; «…» поднимает панель (~0,2 с)
+   и показывает подписи; при открытии приложения панель выезжает снизу, при выходе — уезжает вниз */
+#appbar{position:fixed;left:0;right:0;bottom:0;height:88px;z-index:45;background:#181a17;transform:translateY(100%);
+  transition:transform .3s cubic-bezier(.1,.9,.2,1)}
+#appbar.show{transform:translateY(26px)}
+#appbar.show.open{transform:translateY(0);transition-duration:.2s}
+#appbar.closing{transition:transform .2s cubic-bezier(.6,0,1,1)}
+#appbar .ab-in{width:var(--w);margin:0 auto;position:relative;height:100%}
+.ab-btns{display:flex;justify-content:center;padding-top:8px}
+.ab-b{width:80px;display:flex;flex-direction:column;align-items:center;color:#fff;text-decoration:none}
+.ab-c{width:46px;height:46px;border:2px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.ab-c img{width:42px;height:42px;display:block}
+.ab-l{font-size:12px;margin-top:6px;line-height:1.2;white-space:nowrap;font-weight:600}
+.ab-b:active .ab-c{background:#fff}
+.ab-b:active img{filter:invert(1)}
+.ab-more{position:absolute;right:2px;top:0;width:48px;height:32px;display:flex;justify-content:center;align-items:center;gap:5px}
+.ab-more i{width:4px;height:4px;border-radius:50%;background:#fff;display:block}
+body.has-ab #page{padding-bottom:72px}
+html.light #appbar{background:#dddddd}
+html.light .ab-b{color:#000}
+html.light .ab-c{border-color:#000}
+html.light .ab-c img{filter:invert(1)}
+html.light .ab-b:active .ab-c{background:#000}
+html.light .ab-b:active img{filter:none}
+html.light .ab-more i{background:#000}
+
 /* ===== Просмотр скриншотов ===== */
 #viewer{position:fixed;inset:0;z-index:70;background:#000;display:flex;align-items:center;justify-content:center;cursor:pointer;touch-action:none}
 #viewer img{max-width:calc(100vw - 24px);max-height:calc(100vh - 70px);display:block}
@@ -304,6 +334,7 @@ html.light #msg .mb-b{border-color:#000}
 </div>
 
 <div id="sbar"></div>
+<div id="appbar"><div class="ab-in"><div class="ab-btns"></div><button class="ab-more" aria-label="more"><i></i><i></i><i></i></button></div></div>
 <div id="jump" hidden><div class="jl"></div></div>
 <div id="msg" hidden><div class="mb"><div class="mb-in"><div class="mb-t"></div><div class="mb-x"></div><div class="mb-btns"></div></div></div></div>
 <div id="picker" hidden><div class="pk-in"><div class="pk-title"></div><div class="pk-h"></div><div class="pk-grid"></div></div></div>
@@ -326,9 +357,9 @@ const CONFIG = {
 const SOCIAL = [
   { id: 'reddit',   name: 'Reddit',   url: 'https://www.reddit.com/user/IVANOV2004/' },
   { id: 'github',   name: 'GitHub',   url: 'https://github.com/Bebber228' },
-  { id: 'x',        name: 'X',        url: 'https://x.com/IVANOV228007' },
+  { id: 'x',        name: 'X',        url: 'https://x.com/bebber228' },
   { id: 'telegram', name: 'Telegram', url: 'https://t.me/bebber007' },
-  { id: 'tumblr',   name: 'Tumblr',   url: 'https://tumblr.com/ivanov23' },
+  { id: 'tumblr',   name: 'Tumblr',   url: 'https://bebber228.tumblr.com/' },
   { id: 'openvk',   name: 'OpenVK',   url: 'https://openvk.org/bebber' }
 ];
 const socIcon = id => `img/social/${id}.png`;
@@ -339,31 +370,49 @@ const WALLPAPERS = [
   'NorthWindow.jpg', 'PipiwaiTrail.jpg', 'TrianaSpain.jpg', 'VietnamBridge.jpg',
   'WhiteHouse.jpg'
 ];
-const STORE_BTN = 'https://edge.live.net.co/images/store/2025_GetButton_Black.png';
-new Image().src = STORE_BTN;   // заранее, чтобы кнопка не «выскакивала» после анимации
 
 /* Проекты. icon — иконка из img/icons; glyph: true — белая иконка на цвете темы;
    store — ссылка в Live Store; shots — сколько скриншотов в img/screens/<id>/01.jpg, 02.jpg… */
+/* Проекты. ver — версия, news — нововведения, about — абзацы описания,
+   bar — кнопки панели меню снизу (store — Live Store, download — скачать, github — страница на GitHub). */
 const PROJECTS = [
-  { id: 'booruhub', name: 'BooruHub', icon: 'img/icons/booruhub.png', shots: 7,
-    store: 'https://store.live.net.co/app/946', storeName: 'BooruHub',
-    sub: { ru: 'клиент booru-галерей · Windows Phone 8', en: 'booru gallery client · Windows Phone 8' },
-    about: { ru: 'Моё собственное приложение для Windows Phone 8 — клиент для booru-галерей артов: поиск по тегам, избранное, чёрный список тегов и несколько источников. Сделано в Visual Studio 2013 с Windows Phone SDK 8, развитие продолжается.',
-             en: 'My own Windows Phone 8 app — a client for booru art galleries: tag search, favourites, tag blacklist and multiple sources. Built in Visual Studio 2013 with the Windows Phone SDK 8, still in development.' } },
-  { id: 'msnmoney', name: 'MSN Money Stocks', icon: 'img/icons/msnmoney.png', shots: 7,
-    store: 'https://store.live.net.co/app/968', storeName: 'MSN Money Stocks (Revival)',
-    sub: { ru: 'порт с WP7 на Windows Phone 8.1', en: 'port from WP7 to Windows Phone 8.1' },
-    about: { ru: 'Старое приложение MSN Money Stocks для Windows Phone 7 (версия 1.8), возрождённое и перенесённое на Windows Phone 8.1: снова работают котировки, графики, новости и видео.',
-             en: 'The classic MSN Money Stocks app for Windows Phone 7 (version 1.8), revived and ported to Windows Phone 8.1: quotes, charts, news and videos work again.' } },
-  { id: 'treasureclicker', name: 'Treasure Clicker', icon: 'img/icons/treasureclicker.png', glyph: true, shots: 5,
-    store: 'https://store.live.net.co/app/971', storeName: 'Treasure Clicker',
+  { id: 'booruhub', name: 'BooruHub', icon: 'img/icons/booruhub.png', shots: 7, ver: '0.0.4.1',
+    sub: { ru: 'клиент Gelbooru-галерей · Windows Phone 8.1', en: 'Gelbooru gallery client · Windows Phone 8.1' },
+    news: { ru: ['Добавлены настройки «чёрного списка». Теперь можно блокировать теги, не вводя их каждый раз заново в поисковой строке',
+                 'Улучшен интерфейс, в некоторых местах изменены кнопки',
+                 'В настройках добавлен раздел «О программе» (секретный?)'],
+            en: ['Added blacklist settings. Now you can block tags without typing them into the search bar every time',
+                 'Improved interface, some buttons were changed',
+                 'Added an “About” section to the settings (a secret one?)'] },
+    about: { ru: ['Простое приложение, которое позволяет просматривать изображения и видео с сайтов на движке Gelbooru 2.x.'],
+             en: ['A simple app for browsing images and videos from sites running the Gelbooru 2.x engine.'] },
+    bar: [{ i: 'github', url: 'https://github.com/Bebber228/BooruHub' },
+          { i: 'download', url: 'https://github.com/Bebber228/BooruHub/releases/download/beta-0.0.4.1/BooruHubBeta.xap' },
+          { i: 'store', url: 'https://store.live.net.co/app/946' }] },
+  { id: 'msnmoney', name: 'MSN Money Stocks', icon: 'img/icons/msnmoney.png', shots: 7, ver: '1.8.1.0',
+    sub: { ru: 'возрождённое приложение · Windows Phone 8.1', en: 'revived app · Windows Phone 8.1' },
+    news: { ru: ['Перевод данных c Yahoo Finance на CNBC'], en: ['Data moved from Yahoo Finance to CNBC'] },
+    about: { ru: ['Приложение предназначалось для отслеживания финансовых рынков и управления личными инвестициями. Старые серверы Microsoft, из которых приложение раньше получало данные, давно отключены, ещё в далёком 2011 году. В связи с этим теперь оно берет котировки акций, графики и результаты поиска из бесплатного сервиса CNBC, новости — из лент Yahoo и Google News, а видео — с финансовых каналов на YouTube. Сам интерфейс остался прежним, а «живые плитки» на главном экране телефона теперь формируются и обновляются самим устройством — примерно каждые полчаса.'],
+             en: ['The app was made for following financial markets and managing personal investments. The old Microsoft servers it used to get data from were shut down long ago, back in 2011. So now it takes stock quotes, charts and search results from the free CNBC service, news from Yahoo and Google News feeds, and videos from financial channels on YouTube. The interface stays the same, and the live tiles on the start screen are now built and refreshed by the phone itself — roughly every half hour.'] },
+    bar: [{ i: 'store', url: 'https://store.live.net.co/app/968' }] },
+  { id: 'treasureclicker', name: 'Treasure Clicker', icon: 'img/icons/treasureclicker.png', glyph: true, shots: 5, ver: '0.1.0.0',
     sub: { ru: 'кликер на Nokia Treasure Tag', en: 'a clicker for the Nokia Treasure Tag' },
-    about: { ru: 'Treasure Clicker превращает метку Nokia Treasure Tag в кликер: нажатие кнопки на метке выполняет действие на телефоне.',
-             en: 'Treasure Clicker turns your Nokia Treasure Tag into a clicker: pressing the button on the tag triggers an action on the phone.' } },
-  { id: 'wpmirror', name: 'WpMirror', icon: 'img/icons/wpmirror.png', glyph: true, shots: 0,
+    news: { ru: ['Выпуск приложения'], en: ['First release'] },
+    about: { ru: ['Простая игра-кликер, для которой требуется устройство Nokia Treasure Tag.',
+                  'Nokia Treasure Tag — это миниатюрный умный брелок-трекер (датчик расстояния), выпущенный компанией Nokia в 2014 году для поиска вещей и предупреждения об их потере, который использует технологию Bluetooth 4.0 и питается в основном от батарейки CR-2032. Само устройство ничем не примечательно, оно просто начинает пищать, когда телефон отключается от устройства.',
+                  'Из интересного, в этом теге есть рабочая кнопка, которая отправляет сигнал на устройство, поэтому для данного приложения было решено сделать что-то вроде мини-игры кликера.'],
+             en: ['A simple clicker game that needs a Nokia Treasure Tag.',
+                  'The Nokia Treasure Tag is a tiny smart key-ring tracker (a proximity sensor) released by Nokia in 2014 to help find things and warn you when you leave them behind. It uses Bluetooth 4.0 and mostly runs on a CR-2032 coin cell. The device itself is nothing special — it simply starts beeping when the phone disconnects from it.',
+                  'The interesting part is that the tag has a working button that sends a signal to the phone, so I decided to turn it into a little clicker game.'] },
+    bar: [{ i: 'store', url: 'https://store.live.net.co/app/971' }] },
+  { id: 'wpmirror', name: 'WpMirror', icon: 'img/icons/wpmirror.png', glyph: true, shots: 0, ver: '1.1',
     sub: { ru: 'зеркало экрана телефона на ПК по USB', en: 'phone screen mirroring to a PC over USB' },
-    about: { ru: 'WpMirror выводит экран телефона на Windows Phone на компьютер по USB-кабелю.',
-             en: 'WpMirror shows the screen of a Windows Phone on your computer over a USB cable.' } }
+    news: { ru: ['Удалены лишние элементы', 'Немного оптимизирована производительность', 'Добавлены навигационные кнопки устройства'],
+            en: ['Removed unnecessary elements', 'Slightly improved performance', 'Added the device navigation buttons'] },
+    about: { ru: ['Простое приложение для отображения экрана устройств на базе Windows Phone и Windows 10 Mobile с открытым исходным кодом. Данное приложение было создано, по причине того, что старое официальное приложение от Microsoft «Project My Screen» не работает адекватно, Данная программа работает на том-же методе что и программа от Microsoft, используя интерфейс MI_02 для проекции экрана через составное USB-устройство.'],
+             en: ['A simple open-source app that shows the screen of Windows Phone and Windows 10 Mobile devices on your computer. I made it because Microsoft’s old official “Project My Screen” app no longer works properly. It uses the same method as the Microsoft program — the MI_02 interface for screen projection over a composite USB device.'] },
+    bar: [{ i: 'download', url: 'https://github.com/Bebber228/WpMirror/releases/download/Build-1.1/WpMirror.exe' },
+          { i: 'github', url: 'https://github.com/Bebber228/WpMirror' }] }
 ];
 
 const ACCENTS = [
@@ -388,9 +437,10 @@ const STR = {
     batX: 'Не пропустите ничего важного! Рекомендуется зарядить устройство в ближайшее время, иначе он отключится.', ok: 'ок',
     allApps: 'все приложения', writeMe: 'напишите мне', tagline: 'разработчик приложений для Windows Phone',
     langAuto: 'как в системе', system: 'сейчас', langHint: 'язык интерфейса сайта', mail: 'почта',
-    hi: n => `Привет! Я ${n}.`,
-    aboutText: 'Разрабатываю приложения для Windows Phone: возвращаю к жизни старые программы с WP7, переношу их на Windows Phone 8.1 и делаю свои — в том самом стиле Metro.',
-    aboutSite: 'Этот сайт устроен как Windows Phone 8.1: живые плитки, анимация «турникет» при переходах, панорама рабочего стола, наклон плиток при нажатии и смена цвета элементов.',
+    hi: () => 'Привет друг! Это я – Беббер!',
+    aboutText: 'Я смешной фурри паук, который увлекается тематикой старого интернета и техникой того времени. Занимаюсь разработкой дизайна, разрабатываю в основном простые дизайны для продуктов, баннеров, вывесок, постов, пабликов/сообществ. Большой поклонник устройств Lumia и операционных систем Windows Phone. Разработал пару приложений для устройств на базе WP8.1. В основном это Revive мёртвых приложений, которые перестали работать ещё в далёком 2014 году. Все мои проекты вы можете рассмотреть на данном сайте.',
+    aboutSite: 'Этот сайт вдохновлён стилистикой устройств Windows Phone 8.1 и почти идеально повторяет каждое движение. Я буду очень рад если вы потыкайте всё тут.',
+    version: 'Версия:', whatsNew: 'нововведения', description: 'описание', store: 'live store', download: 'скачать', github: 'github', more: 'ещё',
     dev1: 'основной тестовый телефон', dev2: 'второй телефон для проверки',
     sysPivot: 'система', appsPivot: 'приложения', themeItem: 'рабочий стол+тема', lockItem: 'экран блокировки',
     langItem: 'язык', infoItem: 'сведения о сайте', infoSub: 'стиль, авторы, версия',
@@ -399,9 +449,8 @@ const STR = {
     wallH: 'Фон рабочего стола', pick: 'выбрать фото', remove: 'удалить', pickTitle: 'ВЫБЕРИТЕ ФОТО', walls: 'обои',
     info1: 'Сайт вдохновлён стилем Metro и интерфейсом Windows Phone.',
     info2: 'Живые плитки, «турникет», панорама рабочего стола и экран блокировки сделаны по мотивам Windows Phone 8.1.',
-    tm1: 'Microsoft, Windows, Windows Phone и логотип Windows являются товарными знаками или зарегистрированными товарными знаками корпорации Майкрософт в США и (или) других странах.',
-    tm2: 'Все прочие товарные знаки являются собственностью соответствующих владельцев.',
-    tm3: 'Сайт не является продуктом корпорации Майкрософт и не одобрен ею.',
+    tm1: '© 2016 Microsoft Corporation. Все права защищены. Microsoft, Lumia, Windows и логотипы являются зарегистрированными товарными знаками Microsoft Corporation. Названия других продуктов и компаний могут являться товарными знаками соответствующих владельцев.',
+    tm2: '© 2014 Nokia. Все права защищены. Nokia является зарегистрированным товарным знаком Nokia Corporation.',
     noShots: 'скриншотов пока нет'
   },
   en: {
@@ -415,9 +464,10 @@ const STR = {
     batX: "Don't miss anything important! Charge your device soon, otherwise it will turn off.", ok: 'ok',
     allApps: 'all apps', writeMe: 'get in touch', tagline: 'Windows Phone app developer',
     langAuto: 'system default', system: 'now', langHint: 'site interface language', mail: 'email',
-    hi: n => `Hi! I'm ${n}.`,
-    aboutText: 'I build apps for Windows Phone: I bring old WP7 apps back to life, port them to Windows Phone 8.1 and make my own — in that very Metro style.',
-    aboutSite: 'This site works like Windows Phone 8.1: live tiles, turnstile page transitions, a panning start screen, tile tilt on press and accent colours.',
+    hi: () => "Hi friend! It's me – Bebber!",
+    aboutText: "I'm a funny furry spider into old-internet culture and the tech of that era. I do design work — mostly simple designs for products, banners, signs, posts and online communities. I'm a big fan of Lumia devices and Windows Phone. I've made a couple of apps for WP8.1 devices, mostly revivals of dead apps that stopped working back in 2014. You can find all my projects on this site.",
+    aboutSite: "This site is inspired by the look of Windows Phone 8.1 devices and recreates almost every motion. I'll be really happy if you poke around everything here.",
+    version: 'Version:', whatsNew: "what's new", description: 'description', store: 'live store', download: 'download', github: 'github', more: 'more',
     dev1: 'main test phone', dev2: 'second phone for testing',
     sysPivot: 'system', appsPivot: 'applications', themeItem: 'start+theme', lockItem: 'lock screen',
     langItem: 'language', infoItem: 'about this site', infoSub: 'style, credits, version',
@@ -426,9 +476,8 @@ const STR = {
     wallH: 'Start background', pick: 'choose photo', remove: 'remove', pickTitle: 'CHOOSE A PHOTO', walls: 'wallpapers',
     info1: 'This site is inspired by the Metro design language and the Windows Phone interface.',
     info2: 'Live tiles, turnstile transitions, the panning start screen and the lock screen are modelled on Windows Phone 8.1.',
-    tm1: 'Microsoft, Windows, Windows Phone and the Windows logo are trademarks or registered trademarks of Microsoft Corporation in the United States and/or other countries.',
-    tm2: 'All other trademarks are the property of their respective owners.',
-    tm3: 'This site is not a Microsoft product and is not endorsed by Microsoft Corporation.',
+    tm1: '© 2016 Microsoft Corporation. All rights reserved. Microsoft, Lumia, Windows and the logos are registered trademarks of Microsoft Corporation. Other product and company names may be trademarks of their respective owners.',
+    tm2: '© 2014 Nokia. All rights reserved. Nokia is a registered trademark of Nokia Corporation.',
     noShots: 'no screenshots yet'
   }
 };
@@ -538,7 +587,6 @@ function listPicker(el, onPick) {
 }
 // пункт настроек: крупное название + серая подпись
 const si = (tt, sub, href) => link(href, `<span class="li-t">${tt}</span>${sub ? `<span class="li-s gray">${sub}</span>` : ''}`, 'li ts tilt');
-const storeBtn = x => x.store ? `<a class="store ts tilt" href="${x.store}" target="_blank" rel="noopener" draggable="false"><img src="${STORE_BTN}" alt="Get ${x.storeName} from Live Store" draggable="false"></a>` : '';
 const shotSrc = (id, k) => `img/screens/${id}/${pad(k + 1)}.jpg`;
 
 /* ================= Приложения ================= */
@@ -604,21 +652,24 @@ const APPS = {
     { h: () => t('infoItem'), render: () => p(t('info1'), 'lead') + p(t('info2')) +
       `<button class="btn ts tilt" id="reset">${t('reset')}</button>` +
       `<div class="credits ts"><div class="cr-in"><img class="wp-logo" src="img/wp-logo.png" alt="Windows Phone" draggable="false">
-        <div class="cr">${t('tm1')}<br>${t('tm2')}<br>${t('tm3')}</div></div></div>`,
+        <div class="cr">${t('tm1')}<br>${t('tm2')}</div></div></div>`,
       mount: b => { $('#reset', b).onclick = () => showMsg(t('resetT'), t('resetX'), [
         { t: t('confirm'), fn: () => { store.clear(); setAccent(CONFIG.accent); applyTheme(); applyWall(); langPref = 'auto'; applyLang(); } },
         { t: t('cancel') }]); } }
   ]}
 };
-// страница для каждого проекта: описание + кнопка Live Store, скриншоты
+// страница для каждого проекта: версия, нововведения, описание, скриншоты; кнопки — в панели меню снизу
 PROJECTS.forEach(x => {
   const pivots = [{ h: () => t('aboutApp'), render: () =>
-    `<div class="about-ico ts">${ico({ img: x.icon, glyph: x.glyph })}</div>` + p(x.name, 'lead') + p(tr(x.about)) + storeBtn(x) }];
+    `<div class="about-ico ts">${ico({ img: x.icon, glyph: x.glyph })}</div>` + p(x.name, 'lead') +
+    `<div class="ver ts">${t('version')} ${x.ver}</div>` +
+    `<div class="sub-h ts">${t('whatsNew')}</div><ul class="news ts">${tr(x.news).map(n => `<li>${n}</li>`).join('')}</ul>` +
+    `<div class="sub-h ts">${t('description')}</div>` + tr(x.about).map(a => p(a)).join('') }];
   if (x.shots) pivots.push({ h: () => t('screenshots'),
     render: () => `<div class="shots ts">${[...Array(x.shots)].map((_, k) =>
       `<button class="shot tilt" data-k="${k}"><img src="${shotSrc(x.id, k)}" alt="${x.name} ${k + 1}" draggable="false"></button>`).join('')}</div>`,
     mount: b => $$('.shot', b).forEach(s => s.onclick = () => openViewer(x, +s.dataset.k)) });
-  APPS[x.id] = { title: () => x.name, img: x.icon, glyph: x.glyph, pivots };
+  APPS[x.id] = { title: () => x.name, img: x.icon, glyph: x.glyph, pivots, bar: x.bar };
 });
 
 /* ================= Рабочий стол ================= */
@@ -1145,7 +1196,7 @@ function velocity(d, e) {                       // px/мс по последни
 function hDrag(start, move, end) {
   let d = null;
   document.addEventListener('pointerdown', e => {
-    if (e.button > 0 || e.target.closest('input, #jump, #viewer, #picker, #msg, .sw')) return;
+    if (e.button > 0 || e.target.closest('input, #jump, #viewer, #picker, #msg, #appbar, .sw')) return;
     const ok = start(e); if (!ok) return;
     d = { x: e.clientX, y: e.clientY, active: false, samples: [], ok };
   });
@@ -1331,7 +1382,7 @@ async function go(v) {
   cur = v;
   closeViewer();
   $('#picker').hidden = true; $('#jump').hidden = true;
-  if (!old) { hideAll(); if (v.kind === 'app') buildPage(v.id); views[v.kind].hidden = false; return; }
+  if (!old) { hideAll(); if (v.kind === 'app') buildPage(v.id); views[v.kind].hidden = false; abSet(v.kind === 'app' ? APPS[v.id] : null); return; }
   $('#jump').hidden = true;
 
   if (old.kind !== 'app' && v.kind !== 'app') {           // пуск ⇄ список: панорама
@@ -1343,17 +1394,38 @@ async function go(v) {
   if (old.kind !== 'app') scrolls[old.kind] = scrollY;
   // вперёд — когда открываем приложение; из приложения в приложение — тоже вперёд
   const fwd = v.kind === 'app' && !isBack;
+  if (old.kind === 'app') abSet(null);
   const outs = await turnstile(items(old), fwd ? 'out-fwd' : 'out-back', fwd ? lastTap : null);
   hideAll(); outs.forEach(a => a.cancel());
   await pause(60);                                   // пауза — до показа, чтобы содержимое не мелькало
   if (v.kind === 'app') buildPage(v.id);
   views[v.kind].hidden = false;
   scrollTo(0, v.kind === 'app' ? 0 : scrolls[v.kind]);
+  if (v.kind === 'app') abSet(APPS[v.id]);
   const ins = await turnstile(items(v), v.kind === 'start' ? 'tiles' : fwd ? 'in-fwd' : 'in-back');
   ins.forEach(a => a.cancel());
   flushMsg();
   lastTap = null;
 }
+/* ===== Панель меню: показать / спрятать / раскрыть ===== */
+const AB = $('#appbar');
+function abSet(app) {                         // app — объект из APPS или null
+  const bar = app && app.bar;
+  AB.classList.remove('open', 'closing');
+  if (!bar) {
+    if (AB.classList.contains('show')) { AB.classList.add('closing'); AB.classList.remove('show'); }
+    document.body.classList.remove('has-ab');
+    return;
+  }
+  $('.ab-btns', AB).innerHTML = bar.map(b => `<a class="ab-b" href="${b.url}" target="_blank" rel="noopener" draggable="false">
+    <span class="ab-c"><img src="img/appbar/${b.i}.png" alt="" draggable="false"></span><span class="ab-l">${t(b.i)}</span></a>`).join('');
+  document.body.classList.add('has-ab');
+  AB.offsetWidth;                              // чтобы выезд снизу сработал и при первом показе
+  AB.classList.add('show');
+}
+$('.ab-more', AB).addEventListener('click', () => AB.classList.toggle('open'));
+AB.addEventListener('click', e => { if (e.target.closest('.ab-b')) AB.classList.remove('open'); });
+document.addEventListener('pointerdown', e => { if (!e.target.closest('#appbar')) AB.classList.remove('open'); });
 let queue = Promise.resolve();
 const navigate = () => { queue = queue.then(() => go(parse())).catch(() => {}); };
 addEventListener('hashchange', navigate);
@@ -1480,7 +1552,7 @@ function applyLang() {
   $('.l-hint').textContent = t('lockHint');
   renderTiles();
   renderAppList();
-  if (cur && cur.kind === 'app') buildPage(cur.id, $('#page')._i);
+  if (cur && cur.kind === 'app') { buildPage(cur.id, $('#page')._i); abSet(APPS[cur.id]); }
 }
 function setLang(k) { langPref = k; store.set('lang', k); applyLang(); }
 
