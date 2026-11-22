@@ -55,13 +55,8 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
 #status .grp{display:flex;gap:9px;align-items:center}
 .sig{display:flex;align-items:flex-end;gap:2px;height:12px}
 .sig i{display:block;width:3px;background:#fff}
-.bat{width:22px;height:11px;border:1.5px solid #fff;position:relative;padding:1.5px}
-.bat::after{content:"";position:absolute;right:-4px;top:2.5px;width:2px;height:4px;background:#fff}
-.bat i{display:block;height:100%;width:100%;background:#fff}
-.bat.low i{background:#E51400}
+.bat{height:16px;width:auto;display:block}
 #batPct{font-size:12px}
-.bolt{width:9px;height:12px;fill:#fff;display:none}
-#batWrap.charging .bolt{display:block}
 
 /* ===== Плитки ===== */
 #tiles{position:relative}
@@ -206,9 +201,8 @@ html.light .lpk{border-color:#000}
 /* ===== светлая тема ===== */
 html.light,html.light body{background:#fff;color:#000}
 html.light #status{background:#fff;color:#000}
-html.light .sig i,html.light .bat i,html.light .bat::after{background:#000}
-html.light .bat{border-color:#000}
-html.light .bolt{fill:#000}
+html.light .sig i{background:#000}
+html.light .bat{filter:invert(1)}
 html.light #sbar{background:#000}
 html.light .ph{color:#00000059}
 html.light .txt{color:#333}
@@ -318,7 +312,7 @@ html.light .ab-more i{background:#000}
 <div id="status">
   <div class="grp"><span class="sig"><i style="height:4px"></i><i style="height:6px"></i><i style="height:8px"></i><i style="height:10px"></i><i style="height:12px"></i></span></div>
   <div class="grp">
-    <span class="grp" id="batWrap" hidden><span id="batPct"></span><svg class="bolt" viewBox="0 0 9 12"><path d="M6 0L0 7h3.5L2.5 12 9 4.5H5.5z"/></svg><span class="bat"><i></i></span></span>
+    <span class="grp" id="batWrap" hidden><span id="batPct"></span><img class="bat" alt="" draggable="false"></span>
     <span id="sTime"></span>
   </div>
 </div>
@@ -947,13 +941,22 @@ function lowBattery(pct, charging) {
 /* ================= Батарея (Battery Status API) ================= */
 if (navigator.getBattery) {
   navigator.getBattery().then(b => {
-    const wrap = $('#batWrap'), bat = $('.bat');
+    /* Иконка из img/battery: 23 уровня заряда (normal/1…23). На зарядке каждые 1,5 с сменяется
+       картинкой с вилкой (charging/1…23) и обратно. Меньше 20 % — неподвижная иконка safe. */
+    const wrap = $('#batWrap'), img = $('.bat');
+    let blink = 0, plug = false;
+    const src = (kind, n) => `img/battery/${kind}/${n}.png`;
     const upd = () => {
-      const pct = Math.round(b.level * 100);
-      $('.bat i').style.width = pct + '%';
+      const pct = Math.round(b.level * 100), n = Math.min(23, Math.max(1, Math.ceil(pct * 23 / 100)));
       $('#batPct').textContent = pct + '%';
-      wrap.classList.toggle('charging', b.charging);
-      bat.classList.toggle('low', pct <= 15 && !b.charging);
+      clearInterval(blink); blink = 0;
+      if (pct < 20) img.src = 'img/battery/safe.png';
+      else if (!b.charging) img.src = src('normal', n);
+      else {
+        [src('charging', n), src('normal', n)].forEach(u => { new Image().src = u; });   // заранее, без мигания пустотой
+        plug = true; img.src = src('charging', n);
+        blink = setInterval(() => { plug = !plug; img.src = src(plug ? 'charging' : 'normal', n); }, 1500);
+      }
       wrap.hidden = false;
       lowBattery(pct, b.charging);
     };
