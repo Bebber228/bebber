@@ -259,22 +259,24 @@ body.locked #status{visibility:hidden}
 html.light #msg .mb{background:#fff}
 html.light #msg .mb-b{border-color:#000}
 
-/* ===== Панель меню приложения (AppBar WP 8.1, по видео) =====
-   свёрнута: видны только круглые кнопки, подписи спрятаны за нижним краем; «…» поднимает панель (~0,2 с)
-   и показывает подписи; при открытии приложения панель выезжает снизу, при выходе — уезжает вниз */
+/* ===== Панель меню приложения (AppBar WP 8.1) — замерено покадрово по видео (33 %, пересчитано) =====
+   появление: панель выезжает за ~0,1 с, кнопки догоняют её снизу, проскакивают на ~8px выше и к ~0,32 с встают;
+   «…»: вся панель поднимается на 26px за ~0,32 с (подписи выходят из-за края); сворачивание ~0,15 с;
+   уход при закрытии приложения ~0,12 с с разгоном; нажатие — круг заливается цветом темы, кнопка
+   приподнимается на 3px и после отпускания ещё ~0,35 с держится, затем опускается */
 #appbar{position:fixed;left:0;right:0;bottom:0;height:88px;z-index:45;background:#181a17;transform:translateY(100%);
-  transition:transform .3s cubic-bezier(.1,.9,.2,1)}
-#appbar.show{transform:translateY(26px)}
-#appbar.show.open{transform:translateY(0);transition-duration:.2s}
-#appbar.closing{transition:transform .2s cubic-bezier(.6,0,1,1)}
+  transition:transform .155s cubic-bezier(.3,.6,.3,1)}
+#appbar.show{transform:translateY(29px)}
+#appbar.show.enter{transition:transform .1s cubic-bezier(.2,.7,.3,1)}
+#appbar.show.open{transform:translateY(0);transition:transform .315s cubic-bezier(.2,.7,.3,1)}
+#appbar.closing{transition:transform .12s cubic-bezier(.6,0,1,1)}
 #appbar .ab-in{width:var(--w);margin:0 auto;position:relative;height:100%}
 .ab-btns{display:flex;justify-content:center;padding-top:8px}
 .ab-b{width:80px;display:flex;flex-direction:column;align-items:center;color:#fff;text-decoration:none}
 .ab-c{width:46px;height:46px;border:2px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center;overflow:hidden}
 .ab-c img{width:42px;height:42px;display:block}
 .ab-l{font-size:12px;margin-top:6px;line-height:1.2;white-space:nowrap;font-weight:600}
-.ab-b:active .ab-c{background:#fff}
-.ab-b:active img{filter:invert(1)}
+.ab-b.press .ab-c{background:var(--accent);border-color:var(--accent)}
 .ab-more{position:absolute;right:2px;top:0;width:48px;height:32px;display:flex;justify-content:center;align-items:center;gap:5px}
 .ab-more i{width:4px;height:4px;border-radius:50%;background:#fff;display:block}
 body.has-ab #page{padding-bottom:72px}
@@ -282,8 +284,7 @@ html.light #appbar{background:#dddddd}
 html.light .ab-b{color:#000}
 html.light .ab-c{border-color:#000}
 html.light .ab-c img{filter:invert(1)}
-html.light .ab-b:active .ab-c{background:#000}
-html.light .ab-b:active img{filter:none}
+html.light .ab-b.press img{filter:none}
 html.light .ab-more i{background:#000}
 
 /* ===== Просмотр скриншотов ===== */
@@ -1421,8 +1422,27 @@ function abSet(app) {                         // app — объект из APPS 
     <span class="ab-c"><img src="img/appbar/${b.i}.png" alt="" draggable="false"></span><span class="ab-l">${t(b.i)}</span></a>`).join('');
   document.body.classList.add('has-ab');
   AB.offsetWidth;                              // чтобы выезд снизу сработал и при первом показе
-  AB.classList.add('show');
+  AB.classList.add('show', 'enter');
+  setTimeout(() => AB.classList.remove('enter'), dur(120));
+  // кнопки догоняют панель снизу и «подпрыгивают» (точки: мс, px)
+  const P = [[0, 46], [22, 35], [38, 19], [55, 2], [88, -3], [121, -8], [170, -8], [204, -6], [253, -3], [303, -2], [320, 0]];
+  $('.ab-btns', AB).animate(P.map(([t, y]) => ({ offset: t / 320, transform: `translateY(${y}px)` })), { duration: dur(320) });
 }
+// нажатие на кнопку панели
+AB.addEventListener('pointerdown', e => {
+  const btn = e.target.closest('.ab-b'); if (!btn) return;
+  const b = $('.ab-c', btn);                   // поднимается только круг — подпись остаётся спрятанной
+  clearTimeout(b._t); b.getAnimations().forEach(a => a.cancel());
+  btn.classList.add('press');
+  b._a = b.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(-3px)' }], { duration: dur(120), easing: 'cubic-bezier(.2,.7,.3,1)', fill: 'forwards' });
+  const up = () => {
+    btn.classList.remove('press');
+    b._t = setTimeout(() => { b.getAnimations().forEach(a => a.cancel());
+      b.animate([{ transform: 'translateY(-3px)' }, { transform: 'translateY(0)' }], { duration: dur(80), easing: 'cubic-bezier(.4,0,.6,1)' }); }, dur(350));
+    removeEventListener('pointerup', up); removeEventListener('pointercancel', up);
+  };
+  addEventListener('pointerup', up); addEventListener('pointercancel', up);
+});
 $('.ab-more', AB).addEventListener('click', () => AB.classList.toggle('open'));
 AB.addEventListener('click', e => { if (e.target.closest('.ab-b')) AB.classList.remove('open'); });
 document.addEventListener('pointerdown', e => { if (!e.target.closest('#appbar')) AB.classList.remove('open'); });
