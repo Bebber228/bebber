@@ -678,18 +678,16 @@ if ('ResizeObserver' in window) new ResizeObserver(() => layoutWall()).observe($
 addEventListener('resize', () => layoutWall());
 
 let feedIdx = 0;
-/* Переворот живой плитки — два варианта, сняты покадрово с WP 8.1 (видео 33 %, пересчитано в реальное время).
-   a — угол поворота от текущего, o — доля времени, e — сглаживание участка, который начинается с этого кадра.
-   Положительный угол — верх плитки уходит от зрителя. */
+/* Переворот живой плитки — два варианта, замерены покадрово по видео с телефона в реальной скорости (60 к/с).
+   Точки: [время, мс; угол, °]. Отрицательный угол — верх плитки идёт на зрителя (так переворачивается WP).
+   1) Переворот за ~0,22 с, затем плитка по инерции проходит ещё ~30° и к ~0,63 с возвращается на место.
+   2) Сначала откидывается верхом назад на ~30° (~0,13 с) и сразу возвращается, затем так же переворачивается
+      и с небольшим «перелётом» (~8°) встаёт. */
 const FLIPS = [
-  // 1) резкий переворот (~0,21 с), отскок назад на ~30° и возврат на место
-  { T: 600, dir: 1, cross: 0.195, k: [
-    { o: 0, a: 0, e: 'cubic-bezier(.5,0,1,1)' }, { o: .06, a: 12 }, { o: .35, a: 180, e: 'cubic-bezier(.2,.6,.4,1)' },
-    { o: .62, a: 150, e: 'cubic-bezier(.45,0,.4,1)' }, { o: 1, a: 180 }] },
-  // 2) сначала откидывается верхом назад (~0,15 с), затем переворачивается в другую сторону и с небольшим отскоком встаёт
-  { T: 680, dir: -1, cross: 0.5, k: [
-    { o: 0, a: 0, e: 'cubic-bezier(.45,0,.55,1)' }, { o: .22, a: 32 }, { o: .29, a: 30, e: 'cubic-bezier(.5,0,1,1)' },
-    { o: .39, a: 0 }, { o: .61, a: -180, e: 'cubic-bezier(.2,.6,.4,1)' }, { o: .76, a: -170, e: 'cubic-bezier(.45,0,.4,1)' }, { o: 1, a: -180 }] }
+  [[0, 0], [17, -19], [40, -42], [67, -62], [90, -95], [117, -112], [133, -134], [150, -145], [167, -154], [200, -173],
+   [225, -180], [260, -188], [300, -195], [333, -205], [367, -210], [420, -209], [470, -205], [520, -201], [560, -193], [600, -184], [630, -180]],
+  [[0, 0], [17, 16], [33, 21], [67, 26], [83, 28], [117, 30], [133, 30], [150, 26], [167, 21], [200, 7], [225, 0],
+   [250, -37], [283, -62], [300, -89], [333, -137], [350, -154], [367, -168], [400, -180], [440, -186], [500, -188], [560, -184], [620, -180]]
 ];
 function flipTile(el) {
   if (el._flipping) return;
@@ -698,16 +696,14 @@ function flipTile(el) {
     const x = PROJECTS[feedIdx++ % PROJECTS.length];
     $('.feed', el).innerHTML = `<div class="b-title">${x.name}</div><div class="b-text">${tr(x.sub)}</div>`;
   }
-  const tin = $('.tile-in', el), B = +(el.dataset.ang || 0), F = FLIPS[Math.random() * FLIPS.length | 0];
+  const tin = $('.tile-in', el), B = +(el.dataset.ang || 0), P = FLIPS[Math.random() * FLIPS.length | 0], T = P[P.length - 1][0];
   el._flipping = true;
-  const anim = tin.animate(F.k.map(k => ({ offset: k.o, transform: `rotateX(${B + k.a}deg)`, easing: k.e || 'linear' })),
-    { duration: dur(F.T), fill: 'forwards' });
+  const anim = tin.animate(P.map(([t, a]) => ({ offset: t / T, transform: `rotateX(${B + a}deg)` })), { duration: dur(T), fill: 'forwards' });
   // сторона меняется ровно в момент, когда плитка встаёт ребром (видна всегда только одна сторона)
-  const kc = F.k.findIndex(k => Math.abs(k.a) >= 90), k0 = F.k[kc - 1], k1 = F.k[kc];
-  const tc = k0.o + (k1.o - k0.o) * (90 - Math.abs(k0.a)) / (Math.abs(k1.a) - Math.abs(k0.a));
-  setTimeout(() => el.classList.toggle('on'), dur(F.T * tc));
+  const kc = P.findIndex(([, a]) => a <= -90), [t0, a0] = P[kc - 1], [t1, a1] = P[kc];
+  setTimeout(() => el.classList.toggle('on'), dur(t0 + (t1 - t0) * (-90 - a0) / (a1 - a0)));
   anim.finished.then(() => {
-    const n = (((B + F.dir * 180) % 360) + 360) % 360;
+    const n = (((B - 180) % 360) + 360) % 360;
     el.dataset.ang = n; tin.style.transform = `rotateX(${n}deg)`; anim.cancel(); el._flipping = false;
   }, () => { el._flipping = false; });
 }
