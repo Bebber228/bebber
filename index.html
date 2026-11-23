@@ -46,6 +46,9 @@ body{margin:0;padding:44px 0 40px;background:#000;color:#fff;
 a{color:inherit;text-decoration:none}
 a,img{-webkit-user-drag:none;user-drag:none}
 button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;text-align:left}
+/* всё, что во время анимаций вылетает за край экрана, обрезается — иначе мобильный браузер расширяет страницу
+   и строка состояния с панелью меню уезжают за край */
+#clip{overflow-x:hidden;overflow-x:clip}
 #shell{width:var(--w);margin:0 auto;position:relative}
 #page,#start,#apps{touch-action:pan-y}
 
@@ -317,7 +320,7 @@ html.light .ab-more i{background:#000}
   </div>
 </div>
 
-<div id="shell">
+<div id="clip"><div id="shell">
   <section id="start" hidden>
     <div class="grid" id="tiles"></div>
     <a class="more" href="#/apps" draggable="false"><span class="tilt"></span></a>
@@ -329,7 +332,7 @@ html.light .ab-more i{background:#000}
   </section>
 
   <section id="page" hidden></section>
-</div>
+</div></div>
 
 <div id="sbar"></div>
 <div id="appbar"><div class="ab-in"><div class="ab-btns"></div><button class="ab-more" aria-label="more"><i></i><i></i><i></i></button></div></div>
@@ -893,12 +896,18 @@ function tick() {
 }
 setInterval(tick, 1000);
 
+/* ================= Звуки (браузер разрешает их после первого касания/клика по странице) ================= */
+const SND = { charge: 'sounds/charging.mp3', low: 'sounds/low_battery.mp3' };
+Object.keys(SND).forEach(k => { const a = new Audio(SND[k]); a.preload = 'auto'; SND[k] = a; });
+function playSnd(k) { const a = SND[k]; if (!a) return; try { a.currentTime = 0; const pr = a.play(); if (pr) pr.catch(() => {}); } catch (e) {} }
+
 /* ================= Сообщение и предупреждение о низком заряде ================= */
 /* MessageDialog WP 8.1 (по видео, скорость пересчитана с 37 %): затемнение появляется сразу,
    панель за ~0,2 с доворачивается к зрителю (нижний край был дальше); нажатая кнопка
    заливается цветом темы, затем панель коротко отворачивается нижним краем и пропадает. */
 // btns: [{ t: 'подтвердить', fn }, { t: 'отмена' }] — fn вызывается после закрытия
-function showMsg(title, text, btns) {
+function showMsg(title, text, btns, snd) {
+  if (snd) playSnd(snd);
   const el = $('#msg'), box = $('.mb-btns', el);
   $('.mb-t', el).textContent = title; $('.mb-x', el).textContent = text;
   box.innerHTML = '';
@@ -935,14 +944,15 @@ function lowBattery(pct, charging) {
   const lvl = [20, 10, 5].filter(x => pct <= x).pop();
   if (!lvl || shown.includes(lvl)) return;
   shown.push(lvl); save();
-  queueMsg(t('batT'), t('batX'), [{ t: t('ok') }]);
+  queueMsg(t('batT'), t('batX'), [{ t: t('ok') }], 'low');
 }
 
 /* ================= Батарея (Battery Status API) ================= */
 if (navigator.getBattery) {
   navigator.getBattery().then(b => {
     /* Иконка из img/battery: 23 уровня заряда (normal/1…23). На зарядке каждые 1,5 с сменяется
-       картинкой с вилкой (charging/1…23) и обратно. Меньше 20 % — неподвижная иконка safe. */
+       картинкой с вилкой (charging/1…23) и обратно (каждые 1,7 с). Меньше 20 % — неподвижная иконка safe.
+       Подключили зарядку — звук sounds/charging.mp3. */
     const wrap = $('#batWrap'), img = $('.bat');
     let blink = 0, plug = false;
     const src = (kind, n) => `img/battery/${kind}/${n}.png`;
@@ -955,11 +965,13 @@ if (navigator.getBattery) {
       else {
         [src('charging', n), src('normal', n)].forEach(u => { new Image().src = u; });   // заранее, без мигания пустотой
         plug = true; img.src = src('charging', n);
-        blink = setInterval(() => { plug = !plug; img.src = src(plug ? 'charging' : 'normal', n); }, 1500);
+        blink = setInterval(() => { plug = !plug; img.src = src(plug ? 'charging' : 'normal', n); }, 1700);
       }
       wrap.hidden = false;
       lowBattery(pct, b.charging);
     };
+    let wasCharging = b.charging;
+    b.addEventListener('chargingchange', () => { if (b.charging && !wasCharging) playSnd('charge'); wasCharging = b.charging; });
     upd();
     b.addEventListener('levelchange', upd);
     b.addEventListener('chargingchange', upd);
