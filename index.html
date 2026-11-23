@@ -948,9 +948,13 @@ function lowBattery(pct, charging) {
 }
 
 /* ================= Батарея (Battery Status API) ================= */
-if (navigator.getBattery) {
+/* iPhone/iPad (Safari и все браузеры на iOS) и Firefox не сообщают сайтам заряд — там показываем
+   неподвижную полную иконку без процентов. */
+function noBattery() { $('.bat').src = 'img/battery/normal/23.png'; $('#batPct').textContent = ''; $('#batWrap').hidden = false; }
+if (!navigator.getBattery) noBattery();
+else {
   navigator.getBattery().then(b => {
-    /* Иконка из img/battery: 23 уровня заряда (normal/1…23). На зарядке каждые 1,5 с сменяется
+    /* Иконка из img/battery: 23 уровня заряда (normal/1…23). На зарядке сменяется
        картинкой с вилкой (charging/1…23) и обратно (каждые 1,7 с). Без зарядки и меньше 20 % — неподвижная иконка safe.
        Подключили зарядку — звук sounds/charging.mp3. */
     const wrap = $('#batWrap'), img = $('.bat');
@@ -974,7 +978,7 @@ if (navigator.getBattery) {
     upd();
     b.addEventListener('levelchange', upd);
     b.addEventListener('chargingchange', upd);
-  }).catch(() => {});
+  }).catch(noBattery);
 }
 
 /* ================= Список приложений ================= */
